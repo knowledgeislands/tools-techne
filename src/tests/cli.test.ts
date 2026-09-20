@@ -259,7 +259,7 @@ describe('techne CLI', () => {
     const session = runner.calls.at(-1)
     expect(session).toMatchObject({ command: 'aws', mode: 'interactive' })
     expect(session?.args.join(' ')).toContain('AWS-StartInteractiveCommand')
-    expect(session?.args.join(' ')).toContain('/opt/ki-techne-tools/deploy/runtime/controller/bootstrap.sh')
+    expect(session?.args.join(' ')).toContain('/opt/ki-techne-harness/deploy/runtime/controller/bootstrap.sh')
     expect(session?.args.join(' ')).not.toContain('must-not-leak')
     expect(cli.output().stdout).toContain('private interactive bootstrap session')
   })

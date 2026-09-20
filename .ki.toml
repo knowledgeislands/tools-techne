@@ -65,7 +65,7 @@ CLI = "cli"
 # -----------------------------------------------------------------------------
 
 [skills.ki-trades]
-routes."knowledgeislands/ki-techne-tools" = { export = ["work", "knowledge"], import = ["work", "knowledge"] }
+routes."knowledgeislands/ki-techne-harness" = { export = ["work", "knowledge"], import = ["work", "knowledge"] }
 routes."knowledgeislands/ki-techne-principal" = { import = ["work", "knowledge"] }
 routes."knowledgeislands/homebrew-tap" = { export = ["work"] }
 
