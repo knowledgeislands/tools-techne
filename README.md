@@ -9,11 +9,14 @@ Techne Principal owns the architecture and decision criteria. The Techne Harness
 ```text
 techne diag
 techne doctor
+techne auth login
 techne controller status
 techne controller bootstrap
 ```
 
-Use `techne --help` for options. `diag` is offline and reports only non-secret effective configuration. `doctor` checks local tooling and the expected AWS identity. Interactive bootstrap reads credential values on the remote controller and never sends them as command parameters.
+Use `techne --help` for options. `diag` is offline and reports only non-secret effective configuration. `doctor` checks local tooling and the expected AWS identity. `auth login` reconciles every authentication surface declared by the effective Techne configuration with supported provider clients installed locally. The current configuration declares AWS only: a valid session is left unchanged, while a recognised expired IAM Identity Center session opens `aws sso login` and then revalidates the expected account. Missing clients, unsupported profiles and non-authentication provider failures stop without attempting login. Interactive bootstrap reads credential values on the remote controller and never sends them as command parameters.
+
+Authentication is explicit and interactive. `doctor` and controller commands may direct an expired session to `techne auth login`, but they never open a browser themselves. `auth login` rejects `--json` and non-interactive terminals.
 
 ## Local development installation
 

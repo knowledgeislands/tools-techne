@@ -2,6 +2,20 @@ import type { TechneConfig } from './config.ts'
 import { TechneError } from './errors.ts'
 import type { CommandResult, CommandRunner } from './process.ts'
 
+const EXPIRED_SSO_MARKERS = [
+  'unauthorizedssotoken',
+  'error loading sso token',
+  'sso session associated with this profile has expired',
+  'sso session associated with this profile is invalid',
+  'token has expired and refresh failed'
+] as const
+
+export class AwsAuthenticationExpiredError extends TechneError {
+  constructor(profile: string) {
+    super(`AWS session expired for profile ${profile}; run techne auth login`)
+  }
+}
+
 export interface ControllerStatus {
   exists: boolean
   stackName: string
@@ -12,6 +26,11 @@ export interface ControllerStatus {
 function failureMessage(summary: string, result: CommandResult): string {
   const detail = result.stderr.trim() || result.stdout.trim()
   return detail.length > 0 ? `${summary}: ${detail}` : summary
+}
+
+function isExpiredSsoSession(result: CommandResult): boolean {
+  const detail = `${result.stderr}\n${result.stdout}`.toLowerCase()
+  return EXPIRED_SSO_MARKERS.some((marker) => detail.includes(marker))
 }
 
 function parseObject(value: string, summary: string): Record<string, unknown> {
@@ -62,6 +81,9 @@ export class AwsClient {
       'json'
     ])
     if (result.exitCode !== 0) {
+      if (isExpiredSsoSession(result)) {
+        throw new AwsAuthenticationExpiredError(this.config.profile)
+      }
       throw new TechneError(failureMessage('AWS identity check failed', result))
     }
     const identity = parseObject(result.stdout, 'AWS identity response is invalid')
@@ -72,6 +94,22 @@ export class AwsClient {
       throw new TechneError(`refusing AWS account ${identity['Account']}; expected ${this.config.expectedAccount}`)
     }
     return identity['Account']
+  }
+
+  async login(): Promise<string> {
+    const session = await this.runner.run('aws', ['configure', 'get', 'sso_session', '--profile', this.config.profile])
+    if (session.exitCode !== 0 || session.stdout.trim().length === 0) {
+      throw new TechneError(`AWS profile ${this.config.profile} is not configured for IAM Identity Center`)
+    }
+
+    const result = await this.runner.run('aws', ['sso', 'login', '--profile', this.config.profile], {
+      mode: 'interactive'
+    })
+    if (result.exitCode !== 0) {
+      throw new TechneError(`AWS login failed for profile ${this.config.profile}`)
+    }
+
+    return await this.account()
   }
 
   async controllerStatus(): Promise<ControllerStatus> {

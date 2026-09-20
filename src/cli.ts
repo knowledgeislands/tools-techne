@@ -1,3 +1,4 @@
+import { loginConfiguredAuth } from './auth.ts'
 import { AwsClient, type ControllerStatus } from './aws.ts'
 import { type Environment, type Invocation, parseInvocation } from './config.ts'
 import { TechneError } from './errors.ts'
@@ -14,6 +15,7 @@ export interface CliDependencies {
   environment: Environment
   runtime: TechneRuntime
   io: CliIo
+  interactive: boolean
 }
 
 interface DoctorCheck {
@@ -27,6 +29,7 @@ const HELP = `techne — operate the Techne controller and execution fabric
 Usage:
   techne [global options] diag
   techne [global options] doctor
+  techne [global options] auth login
   techne [global options] controller status
   techne [global options] controller bootstrap
 
@@ -136,6 +139,22 @@ function diag(invocation: Invocation, dependencies: CliDependencies): number {
   return 0
 }
 
+async function authLogin(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  if (invocation.json) {
+    throw new TechneError('--json is not supported for interactive authentication', 2)
+  }
+  if (!dependencies.interactive) {
+    throw new TechneError('auth login requires an interactive terminal', 2)
+  }
+
+  const results = await loginConfiguredAuth(dependencies.runner, invocation.config)
+  for (const result of results) {
+    dependencies.io.stdout(`${result.ok ? 'ok' : 'fail'} auth ${result.surface}: ${result.detail}\n`)
+  }
+
+  return results.every((result) => result.ok) ? 0 : 1
+}
+
 function printControllerStatus(status: ControllerStatus, invocation: Invocation, io: CliIo): void {
   if (invocation.json) {
     io.stdout(`${JSON.stringify(status)}\n`)
@@ -195,6 +214,8 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
         return diag(invocation, dependencies)
       case 'doctor':
         return await doctor(invocation, dependencies)
+      case 'auth login':
+        return await authLogin(invocation, dependencies)
       case 'controller status':
         return await controllerStatus(invocation, dependencies)
       case 'controller bootstrap':

@@ -55,7 +55,8 @@ function stack(instanceId: string | null = INSTANCE): CommandResult {
 function harness(
   runner: CommandRunner,
   environment: Record<string, string | undefined> = {},
-  runtime: TechneRuntime = LOCAL_RUNTIME
+  runtime: TechneRuntime = LOCAL_RUNTIME,
+  interactive = true
 ) {
   let stdout = ''
   let stderr = ''
@@ -68,7 +69,7 @@ function harness(
     }
   }
   return {
-    run: (argv: readonly string[]) => runCli(argv, { runner, environment, runtime, io }),
+    run: (argv: readonly string[]) => runCli(argv, { runner, environment, runtime, io, interactive }),
     output: () => ({ stdout, stderr })
   }
 }
@@ -79,6 +80,7 @@ describe('techne CLI', () => {
     const cli = harness(runner)
 
     expect(await cli.run(['--help'])).toBe(0)
+    expect(cli.output().stdout).toContain('auth login')
     expect(cli.output().stdout).toContain('controller bootstrap')
     expect(runner.calls).toHaveLength(0)
   })
@@ -127,6 +129,53 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['controller', 'explode'])).toBe(2)
     expect(cli.output().stderr).toContain('unknown command')
+  })
+
+  test('logs in every configured authentication surface', async () => {
+    const runner = new FakeRunner([response('', 'aws-cli/2.36.49'), identity()])
+    const cli = harness(runner)
+
+    expect(await cli.run(['auth', 'login'])).toBe(0)
+    expect(cli.output().stdout).toBe(`ok auth aws: account ${ACCOUNT}\n`)
+    expect(runner.calls.map((call) => call.command)).toEqual(['aws', 'aws'])
+  })
+
+  test('reports a configured authentication surface failure', async () => {
+    const cli = harness(new FakeRunner([response('', '', 127)]))
+
+    expect(await cli.run(['auth', 'login'])).toBe(1)
+    expect(cli.output().stdout).toBe('fail auth aws: AWS CLI is unavailable\n')
+  })
+
+  test('rejects JSON authentication without running subprocesses', async () => {
+    const runner = new FakeRunner([])
+    const cli = harness(runner)
+
+    expect(await cli.run(['auth', 'login', '--json'])).toBe(2)
+    expect(cli.output().stderr).toContain('--json is not supported for interactive authentication')
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  test('rejects authentication outside an interactive terminal', async () => {
+    const runner = new FakeRunner([])
+    const cli = harness(runner, {}, LOCAL_RUNTIME, false)
+
+    expect(await cli.run(['auth', 'login'])).toBe(2)
+    expect(cli.output().stderr).toContain('auth login requires an interactive terminal')
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  test('guides expired doctor sessions to explicit authentication', async () => {
+    const runner = new FakeRunner([
+      response('', 'aws-cli/2.36.49'),
+      response('1.2.835.0\n'),
+      response('', 'The SSO session associated with this profile has expired.', 1)
+    ])
+    const cli = harness(runner)
+
+    expect(await cli.run(['doctor'])).toBe(1)
+    expect(cli.output().stdout).toContain('run techne auth login')
+    expect(runner.calls).toHaveLength(3)
   })
 
   test('reports local tools and expected AWS identity', async () => {

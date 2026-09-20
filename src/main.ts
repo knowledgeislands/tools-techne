@@ -8,6 +8,7 @@ const exitCode = await runCli(process.argv.slice(2), {
   runner: new BunCommandRunner(),
   environment: process.env,
   runtime: processRuntime(import.meta.url),
+  interactive: Boolean(process.stdin.isTTY && process.stdout.isTTY),
   io: {
     stdout: (value) => process.stdout.write(value),
     stderr: (value) => process.stderr.write(value)

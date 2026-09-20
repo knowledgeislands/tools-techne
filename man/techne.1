@@ -27,6 +27,15 @@ configuration without network access.
 Check the local runtime, AWS CLI, Session Manager plugin and expected
 AWS identity.
 .TP
+.B auth login
+Reconcile authentication surfaces declared by the effective Techne
+configuration with supported provider clients installed locally. The current
+configuration declares AWS only. A valid session is retained; a recognised
+expired IAM Identity Center session opens an interactive AWS SSO login and
+then revalidates the expected account. Missing clients, unsupported profiles
+and non-authentication failures do not trigger login.
+JSON output and non-interactive terminals are not supported for this command.
+.TP
 .B controller status
 Report the configured controller CloudFormation stack and controller
 instance.

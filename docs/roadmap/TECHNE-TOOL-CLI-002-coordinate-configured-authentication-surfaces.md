@@ -4,12 +4,12 @@ area: CLI
 title: Coordinate configured authentication surfaces
 theme: cli
 horizon: now
-status: ready
+status: awaiting-review
 blocks: []
 blocked_by: []
-baseline_ref: null
+baseline_ref: f1f82dbbeadefa6bc09e806eed4ba3a5e3fc280e
 created_at: 2026-09-20T19:14:50Z
-updated_at: 2026-09-20T19:29:22Z
+updated_at: 2026-09-20T19:36:18Z
 ---
 
 # Coordinate Configured Authentication Surfaces
@@ -40,12 +40,12 @@ The command runner already separates captured and interactive subprocess executi
 
 ## Steps
 
-- [ ] Introduce a typed authentication-surface coordinator that resolves every surface declared by the effective `TechneConfig`, represents availability and session outcomes without credential material, and keeps provider operations behind injectable clients.
-- [ ] Implement the current AWS surface: verify that AWS CLI is installed, inspect the configured profile identity, classify only recognised expired IAM Identity Center sessions as recoverable, run `aws sso login --profile <profile>` interactively, and revalidate the expected account once.
-- [ ] Add `techne auth login` to the public grammar. Skip already-valid sessions, authenticate each recoverable configured surface in deterministic order, retain partial non-secret results, reject `--json` for the interactive flow, and fail clearly for missing clients, unsupported profiles, login failures, account mismatches, and non-authentication provider errors.
-- [ ] Give `doctor` and controller commands actionable `techne auth login` guidance for recognised session expiry without letting those commands silently open a browser or mutate provider sessions.
-- [ ] Cover surface resolution, installed-client checks, valid-session no-op, expired-session recovery, retry limits, partial failure, generic-error refusal, wrong-account refusal, interactive runner use, output safety, and command parsing through injected subprocess fixtures.
-- [ ] Update help, README, and `techne(1)` so configuration intent, installed capability, interactive behavior, provider scope, and non-interactive failure behavior agree.
+- [x] Introduce a typed authentication-surface coordinator that resolves every surface declared by the effective `TechneConfig`, represents availability and session outcomes without credential material, and keeps provider operations behind injectable clients.
+- [x] Implement the current AWS surface: verify that AWS CLI is installed, inspect the configured profile identity, classify only recognised expired IAM Identity Center sessions as recoverable, run `aws sso login --profile <profile>` interactively, and revalidate the expected account once.
+- [x] Add `techne auth login` to the public grammar. Skip already-valid sessions, authenticate each recoverable configured surface in deterministic order, retain partial non-secret results, reject `--json` for the interactive flow, and fail clearly for missing clients, unsupported profiles, login failures, account mismatches, and non-authentication provider errors.
+- [x] Give `doctor` and controller commands actionable `techne auth login` guidance for recognised session expiry without letting those commands silently open a browser or mutate provider sessions.
+- [x] Cover surface resolution, installed-client checks, valid-session no-op, expired-session recovery, retry limits, partial failure, generic-error refusal, wrong-account refusal, interactive runner use, output safety, and command parsing through injected subprocess fixtures.
+- [x] Update help, README, and `techne(1)` so configuration intent, installed capability, interactive behavior, provider scope, and non-interactive failure behavior agree.
 
 ## Files touched
 
@@ -100,6 +100,43 @@ Update README and `techne(1)` with `auth login`, current AWS scope, installed-cl
 ### Roadmap
 
 Keep additional provider adapters as separate work once their configuration ownership and authentication semantics are established. Do not fold first-release publication into this delivery.
+
+## Review
+
+### Delivered
+
+From immutable baseline `f1f82dbbeadefa6bc09e806eed4ba3a5e3fc280e`, delivered configuration-driven `techne auth login` for the complete current authentication surface set: AWS. The command checks installed capability, preserves an already-valid session, recovers only recognised IAM Identity Center expiry through an interactive `aws sso login`, and revalidates the configured account once. It does not contact other providers, define a durable multi-provider configuration, authenticate from diagnostics or controller commands, or accept JSON and non-interactive execution.
+
+### Summary of changes
+
+- Added `src/auth.ts` with ordered, provider-neutral surface coordination and non-secret partial results.
+- Extended `src/aws.ts` with narrow SSO-expiry classification, configured-session validation, interactive login, and post-login account verification.
+- Extended `src/cli.ts` and `src/main.ts` with the public command, rendering, explicit terminal capability, and expiry guidance reused by existing AWS callers.
+- Added `src/tests/auth.test.ts` and expanded `src/tests/cli.test.ts` with fully injected provider, safety, output, and non-interactive cases.
+- Updated `README.md` and `man/techne.1` to state current AWS scope and failure behavior.
+
+No dependency, lockfile, durable configuration, live provider, release, or cross-repository change occurred. The additional `src/main.ts` terminal-capability wiring and dedicated `src/tests/auth.test.ts` fixture file are bounded refinements of the approved non-interactive safety and verification steps.
+
+### Verification
+
+- Bun 1.4.1 frozen install checked 151 installs across 256 packages with no changes.
+- All 49 Vitest tests passed; V8 coverage reached 223/223 lines, 157/157 branches, and 39/39 functions.
+- TypeScript no-emit checking, Biome, Knip, Syncpack, rumdl, and `git diff --check` passed.
+- Compiled binary build, deterministic release-package smoke test, and `mandoc` lint passed.
+- Full KI repository audit passed all 15 configured skills.
+- Live-source help exposed `auth login`; a non-interactive live-source invocation returned usage exit 2 before any AWS operation.
+
+### Outstanding concerns
+
+No blocking concern. Live AWS SSO was deliberately not exercised because verification must not contact provider infrastructure; injected tests verify the exact interactive command, retry boundary, identity check, and failure behavior. Non-AWS providers remain outside the current configuration contract and require separately governed configuration and adapter work.
+
+### Post-change review
+
+The delivered behavior meets the goal for every surface currently declared by `TechneConfig` without treating installed tools as authority. The highest regression risks are false-positive expiry classification and accidental provider interaction in non-interactive contexts; narrow markers, generic-error refusal, explicit terminal injection, one retry, account validation, and full branch coverage bound those risks. The scope remained local and is ready for human acceptance review.
+
+### Mini recap
+
+Techne now has an extensible authentication coordinator and an explicit AWS SSO recovery command with non-secret results and strict safety behavior. All repository gates pass, no live provider was contacted, and no unresolved implementation concern blocks review. Future provider support should route through its owned Techne configuration and adapter contract rather than expanding executable discovery.
 
 ## Discussion
 
