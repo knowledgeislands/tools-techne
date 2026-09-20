@@ -1,0 +1,64 @@
+{
+  "name": "@knowledgeislands/techne",
+  "description": "Techne operator command-line interface.",
+  "version": "0.1.0",
+  "author": "kris@kris.me.uk",
+  "bin": {
+    "techne": "bin/techne"
+  },
+  "bugs": {
+    "url": "https://github.com/knowledgeislands/tools-techne/issues"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.14",
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@types/bun": "^1.4.2",
+    "@types/node": "^26.6.2",
+    "@vitest/coverage-v8": "^5.0.1",
+    "husky": "^9.1.7",
+    "knip": "^6.37.0",
+    "lint-staged": "^17.5.1",
+    "rumdl": "^0.2.74",
+    "syncpack": "^15.3.3",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "homepage": "https://github.com/knowledgeislands/tools-techne#readme",
+  "keywords": [
+    "cli",
+    "knowledge-islands",
+    "techne"
+  ],
+  "license": "MIT",
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,jsonc}": [
+      "bunx @biomejs/biome check --write --no-errors-on-unmatched"
+    ],
+    "*.md": [
+      "bunx rumdl check --fix"
+    ]
+  },
+  "packageManager": "bun@1.4.1",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/knowledgeislands/tools-techne.git"
+  },
+  "scripts": {
+    "build": "bun build --compile --outfile dist/techne src/main.ts",
+    "clean": "rm -rf dist node_modules reports",
+    "ki:deps:update": "bun update --latest",
+    "ki:tools:lint-man": "mandoc -T lint man/techne.1",
+    "prepare": "husky",
+    "self:release:test": "bash release/package.test.sh",
+    "self:typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest"
+  },
+  "type": "module"
+}

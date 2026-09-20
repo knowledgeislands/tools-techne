@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["bin/techne", "src/main.ts", "src/**/*.test.ts"],
+  "ignore": [".claude/skills/**", ".agents/skills/**"],
+  "ignoreBinaries": ["mandoc"],
+  "ignoreDependencies": ["lint-staged", "syncpack"],
+  "ignoreExportsUsedInFile": true
+}

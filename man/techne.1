@@ -1,0 +1,88 @@
+.TH TECHNE 1 "2026-09-20" "techne 0.1.0" "User Commands"
+.SH NAME
+\&
+.PP
+techne \- operate Knowledge Islands Techne Harness
+.SH SYNOPSIS
+\&
+.TP
+.B techne
+.RI [ global-options ]
+.I command
+.SH DESCRIPTION
+\&
+.B techne
+is the operator command-line interface for the Techne controller
+execution fabric.
+It keeps provider credentials out of command arguments and enforces the
+configured AWS account boundary before controller operations.
+.SH COMMANDS
+\&
+.TP
+.B diag
+Report version, installation provenance and effective non-secret
+configuration without network access.
+.TP
+.B doctor
+Check the local runtime, AWS CLI, Session Manager plugin and expected
+AWS identity.
+.TP
+.B controller status
+Report the configured controller CloudFormation stack and controller
+instance.
+.TP
+.B controller bootstrap
+Open a private interactive Session Manager bootstrap session on the
+controller.
+JSON output is not supported for this interactive command.
+.SH GLOBAL OPTIONS
+\&
+.TP
+.BI "--profile " name
+Select the AWS profile.
+.TP
+.BI "--region " region
+Select the AWS region.
+.TP
+.BI "--account " id
+Set the expected AWS account identifier.
+.TP
+.BI "--controller-stack " name
+Select the controller CloudFormation stack.
+.TP
+.B --json
+Request machine-readable output where supported.
+.TP
+.BR -h , " --help"
+Show command help.
+.TP
+.BR -V , " --version"
+Show the version.
+.SH ENVIRONMENT
+\&
+.TP
+.B AWS_PROFILE
+Default AWS profile.
+.TP
+.B AWS_REGION
+Default AWS region.
+.TP
+.B EXPECTED_AWS_ACCOUNT
+AWS account safety boundary.
+.TP
+.B CONTROLLER_STACK_NAME
+Default controller stack name.
+.SH EXIT STATUS
+\&
+.PP
+Returns 0 on success, 1 on operational or health-check failure and 2 on
+invalid command usage.
+.SH SECURITY
+\&
+.PP
+Never place credentials, provider sessions, numeric operator identifiers
+or raw Telegram updates in command arguments, Git or retained evidence.
+.SH SEE ALSO
+\&
+.TP
+.BR aws (1)

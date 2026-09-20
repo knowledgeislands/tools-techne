@@ -1,0 +1,74 @@
+# Knowledge Islands repository configuration.
+# Its presence declares conformance with the Knowledge Islands repository standard.
+
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Foundation
+# -----------------------------------------------------------------------------
+
+[repo]
+harnesses = ["knowledgeislands/ki-agentic-harness"]
+
+[skills.ki-repo]
+repository = "https://github.com/knowledgeislands/tools-techne"
+title = "tools-techne"
+description = "Techne operator command-line interface."
+repo_code = "TECHNE-TOOL"
+supported_runtimes = ["claude-code", "claude-desktop", "chatgpt-codex"]
+visibility = "private"
+license = "MIT"
+
+[skills.ki-authoring]
+
+# -----------------------------------------------------------------------------
+# Repository shape
+# -----------------------------------------------------------------------------
+
+[skills.ki-repo-project]
+
+[skills.ki-repo-tools]
+
+# -----------------------------------------------------------------------------
+# Governance and runtime
+# -----------------------------------------------------------------------------
+
+[skills.ki-guides]
+
+[skills.ki-engineering]
+
+[skills.ki-tokenomics]
+
+[skills.ki-housekeeping-claude]
+
+[skills.ki-tokenomics-claude]
+
+[skills.ki-tokenomics-codex]
+
+[skills.ki-git]
+
+# -----------------------------------------------------------------------------
+# Change management
+# -----------------------------------------------------------------------------
+
+[skills.ki-work]
+adapter = "roadmap"
+
+[skills.ki-work-roadmap]
+themes = ["cli"]
+
+[skills.ki-work-roadmap.areas]
+CLI = "cli"
+
+# -----------------------------------------------------------------------------
+# Relationships
+# -----------------------------------------------------------------------------
+
+[skills.ki-trades]
+routes."knowledgeislands/ki-techne-tools" = { export = ["work", "knowledge"], import = ["work", "knowledge"] }
+routes."knowledgeislands/ki-techne-principal" = { import = ["work", "knowledge"] }
+routes."knowledgeislands/homebrew-tap" = { export = ["work"] }
+
+[skills.ki-agora]
+memberships.ki-all = { home = "https://github.com/knowledgeislands/ki-agentic-harness", role = "maintainer" }
+memberships.ki-fnd = { home = "https://github.com/knowledgeislands/ki-agentic-harness", role = "maintainer" }

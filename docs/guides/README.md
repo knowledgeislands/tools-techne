@@ -1,5 +1,6 @@
 # tools-techne guides
 
-These guides currently cover contributor readiness and the route to a first release. User guides will be added when `techne` has an implemented public command surface.
+These guides explain how to develop and release the standalone `techne` operator tool.
 
-- [Developer guides](developer/README.md) explain how to complete a change and prepare a release without assuming infrastructure that has not yet been built.
+- [Developer guides](developer/README.md) cover the local toolchain, definition of done and release preparation.
+- The installed [`techne(1)` manual](../../man/techne.1) defines the current command surface.
