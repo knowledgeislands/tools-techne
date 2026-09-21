@@ -4,12 +4,12 @@ area: CLI
 title: Coordinate configured authentication surfaces
 theme: cli
 horizon: now
-status: awaiting-review
+status: done
 blocks: []
 blocked_by: []
 baseline_ref: f1f82dbbeadefa6bc09e806eed4ba3a5e3fc280e
 created_at: 2026-09-20T19:14:50Z
-updated_at: 2026-09-20T19:36:18Z
+updated_at: 2026-09-21T23:50:54Z
 ---
 
 # Coordinate Configured Authentication Surfaces
@@ -137,6 +137,10 @@ The delivered behavior meets the goal for every surface currently declared by `T
 ### Mini recap
 
 Techne now has an extensible authentication coordinator and an explicit AWS SSO recovery command with non-secret results and strict safety behavior. All repository gates pass, no live provider was contacted, and no unresolved implementation concern blocks review. Future provider support should route through its owned Techne configuration and adapter contract rather than expanding executable discovery.
+
+## Done
+
+Accepted 2026-09-22 by Kris Brown on the review packet above.
 
 ## Discussion
 
