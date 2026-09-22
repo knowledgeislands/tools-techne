@@ -4,13 +4,13 @@ title: Establish user guides
 area: CLI
 theme: cli
 horizon: now
-status: awaiting-review
+status: done
 blocks: []
 blocked_by: []
 transferred_from: ki-website
 baseline_ref: 4f7eabf5aefcde93ecdf205f27dcd7791adfe53c
 created_at: 2026-09-21T17:20:00Z
-updated_at: 2026-09-22T01:10:14Z
+updated_at: 2026-09-22T05:39:31Z
 ---
 
 ## Goal
@@ -146,6 +146,10 @@ The collection meets the goal: an operator can find installation, authentication
 ### Mini recap
 
 Techne now has a distinct operator guide route with focused installation, authentication, and controller-operation procedures. Tests, Markdown checks, guide and authoring audits, the full repository audit, and offline live-source checks pass. No unresolved concern blocks review, and no separate durable learning route is proposed beyond the delivered guides and retained work record.
+
+## Done
+
+Accepted 2026-09-22 by Kris Brown on the review packet above.
 
 ## Discussion
 
