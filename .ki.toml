@@ -65,9 +65,36 @@ CLI = "cli"
 # -----------------------------------------------------------------------------
 
 [skills.ki-trades]
-routes."knowledgeislands/ki-techne-harness" = { export = ["work", "knowledge"], import = ["work", "knowledge"] }
-routes."knowledgeislands/ki-techne-principal" = { import = ["work", "knowledge"] }
-routes."knowledgeislands/homebrew-tap" = { export = ["work"] }
+
+[skills.ki-trades.subtypes.knowledge]
+techne-architecture-context = "Approved Techne roles, architectural constraints and decision criteria relevant to the receiver. Grants no new implementation scope, priority, deployment or acceptance authority."
+techne-interface-compatibility = "Committed Techne interface and compatibility evidence for receiver-owned components. Excludes credentials and private runtime state; grants no implementation, deployment or release authority."
+
+[skills.ki-trades.routes."knowledgeislands/homebrew-tap"]
+export = ["work"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-agentic-harness"]
+export = ["work", "knowledge"]
+import = ["knowledge"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-agentic-harness".standing.export]
+knowledge = ["shared-capability-maintenance"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-techne-harness"]
+export = ["work", "knowledge"]
+import = ["work", "knowledge"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-techne-harness".standing.export]
+knowledge = ["techne-interface-compatibility"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-techne-harness".standing.import]
+knowledge = ["techne-interface-compatibility"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-techne-principal"]
+import = ["work", "knowledge"]
+
+[skills.ki-trades.routes."knowledgeislands/ki-techne-principal".standing.import]
+knowledge = ["techne-architecture-context"]
 
 [skills.ki-agora]
 memberships.ki-all = { home = "https://github.com/knowledgeislands/ki-arcadia-principal", role = "product" }
