@@ -14,15 +14,15 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@types/bun": "^1.4.2",
-    "@types/node": "^26.6.2",
-    "@vitest/coverage-v8": "^5.0.1",
+    "@types/node": "^26.6.3",
+    "@vitest/coverage-v8": "^5.0.2",
     "husky": "^9.1.7",
-    "knip": "^6.37.0",
-    "lint-staged": "^17.5.1",
-    "rumdl": "^0.2.74",
+    "knip": "^6.38.0",
+    "lint-staged": "^17.6.0",
+    "rumdl": "^0.2.77",
     "syncpack": "^15.3.3",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "engines": {
     "node": ">=22"
