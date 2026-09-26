@@ -15,7 +15,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: Install and verify released KI
         env:
-          KI_VERSION: v0.4.0
+          KI_VERSION: v0.4.1
           KI_CLI_INSTALL_DIR: ${{ runner.temp }}/ki/bin
           KI_MAN_INSTALL_DIR: ${{ runner.temp }}/ki/man/man1
           KI_DATA_HOME: ${{ runner.temp }}/ki/data
