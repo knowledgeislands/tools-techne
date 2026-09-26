@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
       - run: bun install --frozen-lockfile
-      - name: Install verified KI
+      - name: Install and verify released KI
         env:
           KI_VERSION: v0.4.0
           KI_CLI_INSTALL_DIR: ${{ runner.temp }}/ki/bin
@@ -21,18 +21,37 @@ jobs:
           KI_DATA_HOME: ${{ runner.temp }}/ki/data
           KI_CONFIG_HOME: ${{ runner.temp }}/ki/config
           KI_CACHE_HOME: ${{ runner.temp }}/ki/cache
-          KI_STATE_HOME: ${{ runner.temp }}/ki/state
+          XDG_STATE_HOME: ${{ runner.temp }}/ki/state
+          KI_STATE_HOME: ${{ runner.temp }}/ki/state/ki
         run: |
           set -euo pipefail
+          mkdir -p "$HOME/.agents" "$HOME/.claude"
+          printf '{}\n' > "$HOME/.claude/settings.json"
           curl --fail --silent --show-error --location --max-redirs 3 --proto '=https' --proto-redir '=https' \
             --output "$RUNNER_TEMP/ki-install.sh" \
             "https://raw.githubusercontent.com/knowledgeislands/tools-ki/$KI_VERSION/install.sh"
           bash "$RUNNER_TEMP/ki-install.sh" "$KI_VERSION"
+          export PATH="$KI_CLI_INSTALL_DIR:$PATH"
+          test "$(command -v ki)" = "$KI_CLI_INSTALL_DIR/ki"
+          test "$(ki --version)" = "${KI_VERSION#v}"
+          ki manage diag | grep -F 'Installation: regular'
+          ki manage diag | grep -F "Executable: $KI_CLI_INSTALL_DIR/ki"
+          ki bootstrap
+          ki registry add --repo .
+          ki repo repair --repo .
+          project_key=${GITHUB_WORKSPACE//\//-}
+          mkdir -p "$HOME/.claude/projects/$project_key/memory"
+          touch "$HOME/.claude/projects/$project_key/memory/MEMORY.md"
+          ki manage diag | grep -F 'Status: valid'
+          ki harness list | grep -F 'knowledgeislands/ki-agentic-harness'
           printf '%s\n' "$KI_CLI_INSTALL_DIR" >> "$GITHUB_PATH"
           {
+            printf 'KI_CLI_INSTALL_DIR=%s\n' "$KI_CLI_INSTALL_DIR"
+            printf 'KI_MAN_INSTALL_DIR=%s\n' "$KI_MAN_INSTALL_DIR"
             printf 'KI_DATA_HOME=%s\n' "$KI_DATA_HOME"
             printf 'KI_CONFIG_HOME=%s\n' "$KI_CONFIG_HOME"
             printf 'KI_CACHE_HOME=%s\n' "$KI_CACHE_HOME"
+            printf 'XDG_STATE_HOME=%s\n' "$XDG_STATE_HOME"
             printf 'KI_STATE_HOME=%s\n' "$KI_STATE_HOME"
           } >> "$GITHUB_ENV"
       - run: ki repo audit --repo .
