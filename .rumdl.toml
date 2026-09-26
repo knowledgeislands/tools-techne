@@ -3,6 +3,7 @@
 
 [global]
 exclude = [
+  ".git",
   "node_modules",
   "dist",
   "src/generated",
