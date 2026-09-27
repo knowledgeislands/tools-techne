@@ -9,7 +9,7 @@ blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-09-20T12:17:29Z
-updated_at: 2026-09-26T12:43:20Z
+updated_at: 2026-09-27T23:14:28Z
 ---
 
 # Publish first Techne release
@@ -35,3 +35,9 @@ Future work may decide public visibility, select the accepted version, create an
 Remaining release decisions are whether and when to make the repository public, whether `0.1.0` is the accepted first-release version, which reviewed commit becomes the candidate, and when to push, tag, dispatch the release workflow, verify its archives and checksums, and hand the immutable release to `knowledgeislands/homebrew-tap`. Each external or irreversible step still requires explicit authority.
 
 `tools-ki` is the release-shape reference. The first `techne` release should use the repository's own artifact contract and should not copy signing machinery until its key ownership and secret boundary are deliberately established.
+
+### Pickup checkpoint — 2026-09-28
+
+- **Integrated preparation:** local `main` is `6d17dbafe57e885d9d431942db555b63c9e3b3ac`. Commit `482353c` introduced the standalone CLI, checkout-bound `install.sh`, `release/package.sh`, `release/package.test.sh`, and `.github/workflows/release.yml`; `df1fa12` added configuration-driven authentication in `src/auth.ts` and `src/aws.ts`; `8cea867` added the operator guides under `docs/guides/user/`. Current `package.json` still declares `0.1.0`, `CHANGELOG.md` marks it Unreleased, and `install.sh` accepts `--link`. These are preparation evidence, not a published release.
+- **Publication boundary:** local `git tag -l` returned no tags; the checked-out `knowledgeislands/homebrew-tap` has no `Formula/techne.rb`, and its `BREW-006` record remains draft Triage. This audit did not query remote GitHub releases or rerun packaging, smoke, or full executable tests. The record's earlier complete-audit claim is historical rather than fresh verification.
+- **Remaining and pickup:** preserve this item's unadopted Triage state until the owner separately selects and approves it. Reconcile destination branch, any linked coordination tasks and live ownership, and retained worktrees before implementation; missing task evidence does not release ownership or lift the Techné hold. The principal must explicitly decide programme resumption before a reviewed release candidate, version, visibility, tag, push, archive verification, or tap handoff proceeds. This checkpoint is guidance, not an execution block or resumption authority. Owner review and acceptance are required for closure; retain any later Done record until explicit pruning.
