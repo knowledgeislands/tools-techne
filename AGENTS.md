@@ -14,3 +14,7 @@ Techne Principal owns architectural roles, invariants and decision criteria. `to
 - Keep credentials, numeric operator identifiers, provider sessions and raw updates out of Git, tests, logs and command arguments.
 - Use Bun `1.4.1` from the repository root. Do not create package-local lockfiles or dependency directories.
 - Do not push, tag, publish, release or update Homebrew without explicit authority.
+
+## Techne execution hold
+
+New Techné implementation, substantive architecture changes, branch integration and remote rollout are on hold. The programme hold and restart criteria are owned by `ki-techne-principal` in `AGENTS.md`, section `Techne holding position`. Existing Ready records and task approvals do not override the hold. Preserve branches, worktrees, work records and existing services; read-only inspection and explicitly scoped preservation or hold administration may continue. Resume only on the principal's explicit direction after the local Paperclip learning review and remote-delivery policy.
