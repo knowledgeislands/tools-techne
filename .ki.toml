@@ -98,4 +98,4 @@ import = ["work", "knowledge"]
 standing.import.knowledge = ["techne-architecture-context"]
 
 [skills.ki-agora]
-memberships.kis = { home = "https://github.com/knowledgeislands/ki-arcadia-principal", role = "product" }
+memberships.kis = { home = "https://github.com/knowledgeislands/ki-arcadia-principal", role = "member" }
