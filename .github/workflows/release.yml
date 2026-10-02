@@ -128,6 +128,15 @@ jobs:
             TECHNE_INSTALL_DIR="$verify_dir/bin" TECHNE_MAN_INSTALL_DIR="$verify_dir/man/man1" \
             bash install.sh "$VERSION"
           test "$("$verify_dir/bin/techne" --version)" = "${VERSION#v}"
+          "$verify_dir/bin/techne" --help > "$verify_dir/help.txt"
+          grep -Fq 'techne completion <bash|zsh>' "$verify_dir/help.txt"
+          "$verify_dir/bin/techne" completion bash > "$verify_dir/techne.bash"
+          "$verify_dir/bin/techne" completion zsh > "$verify_dir/_techne"
+          bash -n "$verify_dir/techne.bash"
+          bash -c 'source "$1"; complete -p techne >/dev/null' _ "$verify_dir/techne.bash"
+          grep -Fxq 'complete -F _techne techne' "$verify_dir/techne.bash"
+          grep -Fxq '#compdef techne' "$verify_dir/_techne"
+          grep -Fxq 'compdef _techne techne' "$verify_dir/_techne"
           test -f "$verify_dir/man/man1/techne.1"
           gh release edit "$VERSION" --draft=false --latest
           test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" --jq '.immutable')" = true

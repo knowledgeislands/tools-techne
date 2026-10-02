@@ -5,7 +5,7 @@ Use this checklist before presenting a `tools-techne` change for review.
 ## Tool contract
 
 - `bin/techne` is the primary source launcher and `src/version.ts` is the authoritative executable version.
-- `--help`, `--version`, README and `techne(1)` describe the same public command surface.
+- `--help`, `--version`, generated Bash/Zsh completion, README, user guides, the Pre-1.0 changelog baseline and `techne(1)` describe the same public command surface.
 - Command grammar and rendering remain separate from typed provider operations and subprocess execution.
 - Diagnostics exclude credentials and numeric operator identifiers.
 - Removed or deferred behaviour leaves no misleading compatibility surface.

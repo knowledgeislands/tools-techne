@@ -22,6 +22,8 @@ Use `techne --help` for command and option reference. The [user guides](docs/gui
 
 `techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 
+These commands are in the current source checkout; the published `v0.1.0` release predates completion support.
+
 ## Installation
 
 Install the first release from its exact tag:

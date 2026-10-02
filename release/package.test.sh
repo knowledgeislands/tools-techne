@@ -19,6 +19,18 @@ archive=$(bash release/package.sh "v$version" "$bun_target" "$asset_target")
 tar -xzf "$archive" -C "$stage/unpack"
 
 [[ "$("$stage/unpack/techne" --version)" == "$version" ]]
+"$stage/unpack/techne" --help >"$stage/help.txt"
+grep -Fq 'techne completion <bash|zsh>' "$stage/help.txt"
+"$stage/unpack/techne" completion bash >"$stage/techne.bash"
+"$stage/unpack/techne" completion zsh >"$stage/_techne"
+bash -n "$stage/techne.bash"
+bash -c 'source "$1"; complete -p techne >/dev/null' _ "$stage/techne.bash"
+grep -Fxq 'complete -F _techne techne' "$stage/techne.bash"
+grep -Fxq '#compdef techne' "$stage/_techne"
+grep -Fxq 'compdef _techne techne' "$stage/_techne"
+if command -v zsh >/dev/null; then
+  zsh -f -c 'fpath=("$1" $fpath); autoload -Uz compinit; compinit -D; [[ "${_comps[techne]}" == _techne ]]' _ "$stage"
+fi
 diagnostic=$("$stage/unpack/techne" diag --json)
 bun -e '
   const report = JSON.parse(process.argv[1])

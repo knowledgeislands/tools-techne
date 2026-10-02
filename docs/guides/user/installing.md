@@ -48,4 +48,6 @@ If the shell cannot find `techne`, add its installation directory to `PATH` or r
 
 ## Shell completion
 
+Completion is available from a linked development checkout and will be included in the next release. The published `v0.1.0` archive and Homebrew formula do not contain this command.
+
 `techne completion bash` and `techne completion zsh` print completion source. For the current Bash session, run `source <(techne completion bash)`. For Zsh, write `techne completion zsh` to an `_techne` file in a directory on `fpath` before `compinit` runs. Keep persistent shell setup in your shell configuration or configuration manager; the installer does not edit it.

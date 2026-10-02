@@ -6,9 +6,10 @@
 
 1. Satisfy the repository [definition of done](definition-of-done.md) on a clean commit.
 2. Select the next semantic version and update `package.json`, `src/version.ts` and `techne(1)` together. For a 0.x candidate, refresh the consolidated Pre-1.0 command and capability baseline in `CHANGELOG.md` without adding a dated release section; from 1.0 onward, add a dated entry.
-3. Run every native verification gate, including the current-platform release archive smoke test.
-4. Confirm the repository is public and GitHub release immutability is enabled. Review both GitHub settings before changing them.
-5. Create and push an exact `vX.Y.Z` tag only after the candidate commit is accepted, pushed and CI passes. Never move a published tag.
+3. Compare the candidate's `--help`, `--version` and Bash/Zsh completion output with the README command overview, user guides, Pre-1.0 changelog baseline and `techne(1)`. Every shipped command, option and installation instruction must agree; check the compiled release archive as well as the source launcher.
+4. Run every native verification gate, including the current-platform release archive smoke test.
+5. Confirm the repository is public and GitHub release immutability is enabled. Review both GitHub settings before changing them.
+6. Create and push an exact `vX.Y.Z` tag only after the candidate commit is accepted, pushed and CI passes. Never move a published tag.
 
 ## Publish
 
