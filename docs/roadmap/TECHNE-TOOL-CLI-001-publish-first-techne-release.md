@@ -4,12 +4,13 @@ area: CLI
 title: Publish first Techne release
 theme: cli
 horizon: triage
-status: draft
+status: done
+intake_disposition: rejected
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-09-20T12:17:29Z
-updated_at: 2026-09-27T23:14:28Z
+updated_at: 2026-10-02T08:25:00Z
 ---
 
 # Publish first Techne release
@@ -29,6 +30,14 @@ The complete repository audit currently passes. The accepted authentication and 
 ## Boundary
 
 Future work may decide public visibility, select the accepted version, create an exact tag, publish verified platform archives and hand immutable checksums to the Homebrew tap. It must not publish from the harness repository, overwrite a release, expose credentials or update the tap before destination-side verification passes.
+
+## Intake disposition
+
+Outcome: rejected as a roadmap item. Rationale: the repository owner directed this release through the existing release guide and requested an empty roadmap; this intake record is unnecessary for the release. No retained target applies. Approval: repository owner, 2026-10-02.
+
+## Done
+
+Disposed 2026-10-02 by the repository owner as rejected on the intake evidence above.
 
 ## Discussion
 
