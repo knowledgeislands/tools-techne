@@ -15,6 +15,6 @@ Arcadia owns architectural roles, invariants and decision criteria. `tools-techn
 - Use Bun `1.4.1` from the repository root. Do not create package-local lockfiles or dependency directories.
 - Do not push, tag, publish, release or update Homebrew without explicit authority.
 
-## Techne execution hold
+## Remote-environment hold
 
-New Techné implementation, substantive architecture changes, branch integration and remote rollout are on hold. The programme hold and restart criteria are owned by Arcadia in [Techne Programme Hold](https://github.com/knowledgeislands/ki-arcadia-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md). Existing Ready records and task approvals do not override the hold. Preserve branches, worktrees, work records and existing services; read-only inspection and explicitly scoped preservation or hold administration may continue. Resume only on the principal's explicit direction after the local Paperclip learning review and remote-delivery policy.
+There is no general hold on local Techné implementation, architecture work, testing or branch integration. The hold concerns managing remote environments, including remote-agent or infrastructure rollout and changes to running services. Do not treat a Ready record or task approval as authority for remote-environment operations. Preserve existing remote services and state until the principal explicitly authorises their management under a remote-delivery policy. Arcadia owns the programme policy in [Techne Programme Hold](https://github.com/knowledgeislands/ki-arcadia-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md); that document still needs to be reconciled with this narrowed scope.
