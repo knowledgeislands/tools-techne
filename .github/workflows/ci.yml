@@ -34,7 +34,7 @@ jobs:
           test "$(command -v ki)" = "$KI_CLI_INSTALL_DIR/ki"
           ki --version
           ki manage diag | grep -F 'Installation: local'
-          ki manage diag | grep -F "Executable: $KI_CLI_INSTALL_DIR/ki"
+          ki manage diag | grep -F "Executable: $RUNNER_TEMP/tools-ki-source/src/main.ts"
           ki bootstrap
           ki registry add --repo .
           ki repo repair --repo .
