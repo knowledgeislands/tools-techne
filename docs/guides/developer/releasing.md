@@ -5,7 +5,7 @@ No `techne` release has been published. The repository prepares immutable platfo
 ## Prepare a candidate
 
 1. Satisfy the repository [definition of done](definition-of-done.md) on a clean commit.
-2. Select the next semantic version and update `package.json`, `src/version.ts`, `CHANGELOG.md` and `techne(1)` together.
+2. Select the next semantic version and update `package.json`, `src/version.ts` and `techne(1)` together. For a 0.x candidate, refresh the consolidated Pre-1.0 command and capability baseline in `CHANGELOG.md` without adding a dated release section; from 1.0 onward, add a dated entry.
 3. Run every native verification gate, including the current-platform release archive smoke test.
 4. Make the repository public only through an explicitly reviewed GitHub-settings change.
 5. Create an exact `vX.Y.Z` tag only after the candidate commit is accepted and pushed.
