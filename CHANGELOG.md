@@ -22,4 +22,4 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 - Add exact-version and latest-release installation, local-link installation, a physical manual and macOS/Linux release archives.
 - Print Bash and Zsh command and option completions without modifying shell startup files.
 
-The first release is `v0.1.0`. The baseline remains consolidated until 1.0.
+The first release was `v0.1.0`; this baseline is current for `v0.1.1` and remains consolidated until 1.0.

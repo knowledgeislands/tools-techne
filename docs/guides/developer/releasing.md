@@ -1,6 +1,6 @@
 # Release tools-techne
 
-`techne` releases use the same exact `vX.Y.Z` tag, public GitHub Release, verified installer and Homebrew handoff sequence as the other KI tools. Version `0.1.0` is the tentative first release.
+`techne` releases use the same exact `vX.Y.Z` tag, public GitHub Release, verified installer and Homebrew handoff sequence as the other KI tools.
 
 ## Prepare a candidate
 

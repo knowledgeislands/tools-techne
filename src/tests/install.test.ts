@@ -69,7 +69,9 @@ describe('local installer', () => {
 
     const diagnostic = await run([launcher, 'diag', '--json'], {})
     expect(diagnostic.exitCode).toBe(0)
-    expect(JSON.parse(diagnostic.stdout)).toMatchObject({ version: '0.1.0', installation: 'local' })
+    const packageVersion = (JSON.parse(await readFile(join(repository, 'package.json'), 'utf8')) as { version: string })
+      .version
+    expect(JSON.parse(diagnostic.stdout)).toMatchObject({ version: packageVersion, installation: 'local' })
   })
 
   test('rejects an invalid installation version', async () => {

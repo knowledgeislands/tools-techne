@@ -1,6 +1,6 @@
 # Install techne
 
-Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The first release is `v0.1.0`.
+Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The current release is `v0.1.1`.
 
 ## Install an exact release
 
@@ -8,8 +8,8 @@ Download the installer from the exact tag and pass the same tag as its positiona
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
-  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.0/install.sh
-bash ./install.sh v0.1.0
+  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.1/install.sh
+bash ./install.sh v0.1.1
 ```
 
 The installer chooses the macOS ARM64, macOS x64 or Linux x64 archive, checks it against the release checksum manifest, validates its contents and version, then installs the executable and manual. Run `bash ./install.sh` to install the latest published release from the same installer. The installer needs `curl`, `shasum` and `tar`; the released executable does not need Bun.
@@ -19,7 +19,7 @@ By default, files go to `~/.local/bin/techne` and `~/.local/share/man/man1/techn
 ```sh
 TECHNE_INSTALL_DIR="$HOME/bin" \
 TECHNE_MAN_INSTALL_DIR="$HOME/share/man/man1" \
-  bash ./install.sh v0.1.0
+  bash ./install.sh v0.1.1
 ```
 
 ## Install with Homebrew
@@ -48,6 +48,6 @@ If the shell cannot find `techne`, add its installation directory to `PATH` or r
 
 ## Shell completion
 
-Completion is available from a linked development checkout and will be included in the next release. The published `v0.1.0` archive and Homebrew formula do not contain this command.
+Completion is included in `v0.1.1` through both the installer and Homebrew. The earlier `v0.1.0` release does not contain this command.
 
 `techne completion bash` and `techne completion zsh` print completion source. For the current Bash session, run `source <(techne completion bash)`. For Zsh, write `techne completion zsh` to an `_techne` file in a directory on `fpath` before `compinit` runs. Keep persistent shell setup in your shell configuration or configuration manager; the installer does not edit it.

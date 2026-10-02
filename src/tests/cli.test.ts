@@ -6,11 +6,12 @@ import { describe, expect, test } from 'vitest'
 import { type CliIo, runCli } from '../cli.ts'
 import type { CommandCall, CommandResult, CommandRunner, RunOptions } from '../process.ts'
 import type { TechneRuntime } from '../runtime.ts'
+import { TECHNE_VERSION } from '../version.ts'
 
 const ACCOUNT = '655383751458'
 const INSTANCE = 'i-0123456789abcdef0'
 const LOCAL_RUNTIME: TechneRuntime = {
-  version: '0.1.0',
+  version: TECHNE_VERSION,
   installation: 'local',
   executable: '/checkout/src/main.ts',
   workingDirectory: '/checkout',
@@ -101,7 +102,7 @@ describe('techne CLI', () => {
     const cli = harness(runner)
 
     expect(await cli.run(['--version'])).toBe(0)
-    expect(cli.output().stdout).toBe('0.1.0\n')
+    expect(cli.output().stdout).toBe(`${TECHNE_VERSION}\n`)
     expect(runner.calls).toHaveLength(0)
   })
 
@@ -189,7 +190,7 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['diag', '--json'])).toBe(0)
     expect(JSON.parse(cli.output().stdout)).toMatchObject({
-      version: '0.1.0',
+      version: TECHNE_VERSION,
       installation: 'local',
       executable: '/checkout/src/main.ts',
       configuration: { profile: 'local-profile' }
@@ -202,7 +203,7 @@ describe('techne CLI', () => {
     const cli = harness(new FakeRunner([]))
 
     expect(await cli.run(['diag'])).toBe(0)
-    expect(cli.output().stdout).toContain('Techne 0.1.0')
+    expect(cli.output().stdout).toContain(`Techne ${TECHNE_VERSION}`)
     expect(cli.output().stdout).toContain('controller stack:')
   })
 

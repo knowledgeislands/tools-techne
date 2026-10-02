@@ -1,7 +1,7 @@
 {
   "name": "@knowledgeislands/techne",
   "description": "Techne operator command-line interface.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "kris@kris.me.uk",
   "bin": {
     "techne": "bin/techne"

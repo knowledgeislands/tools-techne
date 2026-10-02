@@ -22,16 +22,16 @@ Use `techne --help` for command and option reference. The [user guides](docs/gui
 
 `techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 
-These commands are in the current source checkout; the published `v0.1.0` release predates completion support.
+Completion support ships in `v0.1.1`; the earlier `v0.1.0` release does not include it.
 
 ## Installation
 
-Install the first release from its exact tag:
+Install the current release from its exact tag:
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
-  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.0/install.sh
-bash ./install.sh v0.1.0
+  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.1/install.sh
+bash ./install.sh v0.1.1
 ```
 
 The [installation guide](docs/guides/user/installing.md) covers Homebrew, destination overrides, verification and local development links.
