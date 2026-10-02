@@ -24,8 +24,9 @@ jobs:
           KI_STATE_HOME: ${{ runner.temp }}/ki/state/ki
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.agents" "$HOME/.claude"
+          mkdir -p "$HOME/.agents" "$HOME/.claude" "$HOME/.config/ki"
           printf '{}\n' > "$HOME/.claude/settings.json"
+          printf 'mcpServers: []\n' > "$HOME/.config/ki/mcp-servers.yaml"
           git clone --quiet --depth 1 --branch main https://github.com/knowledgeislands/tools-ki.git "$RUNNER_TEMP/tools-ki-source"
           printf 'KI source commit: %s\n' "$(git -C "$RUNNER_TEMP/tools-ki-source" rev-parse HEAD)"
           (cd "$RUNNER_TEMP/tools-ki-source" && bun install --frozen-lockfile)
@@ -43,9 +44,6 @@ jobs:
           ki dev local set knowledgeislands/ki-agentic-harness "$RUNNER_TEMP/ki-agentic-harness-source"
           ki dev local on knowledgeislands/ki-agentic-harness
           ki repo repair --repo .
-          project_key=${GITHUB_WORKSPACE//\//-}
-          mkdir -p "$HOME/.claude/projects/$project_key/memory"
-          touch "$HOME/.claude/projects/$project_key/memory/MEMORY.md"
           ki manage diag | grep -F 'Status: valid'
           ki harness list | grep -F 'knowledgeislands/ki-agentic-harness'
           printf '%s\n' "$KI_CLI_INSTALL_DIR" >> "$GITHUB_PATH"
