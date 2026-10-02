@@ -37,6 +37,11 @@ jobs:
           ki manage diag | grep -F "Executable: $RUNNER_TEMP/tools-ki-source/src/main.ts"
           ki bootstrap
           ki registry add --repo .
+          git clone --quiet --depth 1 --branch main https://github.com/knowledgeislands/ki-agentic-harness.git "$RUNNER_TEMP/ki-agentic-harness-source"
+          printf 'KI harness source commit: %s\n' "$(git -C "$RUNNER_TEMP/ki-agentic-harness-source" rev-parse HEAD)"
+          (cd "$RUNNER_TEMP/ki-agentic-harness-source" && bun install --frozen-lockfile)
+          ki dev local set knowledgeislands/ki-agentic-harness "$RUNNER_TEMP/ki-agentic-harness-source"
+          ki dev local on knowledgeislands/ki-agentic-harness
           ki repo repair --repo .
           project_key=${GITHUB_WORKSPACE//\//-}
           mkdir -p "$HOME/.claude/projects/$project_key/memory"
