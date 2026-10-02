@@ -13,11 +13,13 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 - `techne auth login`
 - `techne controller status`
 - `techne controller bootstrap`
+- `techne completion <bash|zsh>`
 
 ### Capabilities
 
 - Establish the standalone `tools-techne` repository and flat Bun/TypeScript CLI layout.
 - Provide offline diagnostics, local health checks, controller status and interactive controller bootstrap.
 - Add exact-version and latest-release installation, local-link installation, a physical manual and macOS/Linux release archives.
+- Print Bash and Zsh command and option completions without modifying shell startup files.
 
 The first release is `v0.1.0`. The baseline remains consolidated until 1.0.

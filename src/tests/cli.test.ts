@@ -1,3 +1,7 @@
+import { spawnSync } from 'node:child_process'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { type CliIo, runCli } from '../cli.ts'
 import type { CommandCall, CommandResult, CommandRunner, RunOptions } from '../process.ts'
@@ -99,6 +103,84 @@ describe('techne CLI', () => {
     expect(await cli.run(['--version'])).toBe(0)
     expect(cli.output().stdout).toBe('0.1.0\n')
     expect(runner.calls).toHaveLength(0)
+  })
+
+  test('prints Bash and Zsh completion definitions without provider calls', async () => {
+    for (const shell of ['bash', 'zsh']) {
+      const runner = new FakeRunner([])
+      const cli = harness(runner)
+
+      expect(await cli.run(['completion', shell])).toBe(0)
+      expect(cli.output().stderr).toBe('')
+      expect(cli.output().stdout).toContain(shell === 'bash' ? 'complete -F _techne techne' : '#compdef techne')
+      expect(cli.output().stdout).toContain(shell === 'bash' ? 'controller' : 'compdef _techne techne')
+      expect(runner.calls).toHaveLength(0)
+    }
+  })
+
+  test('Bash completion registers and resolves command context', async () => {
+    const dollar = '$'
+    const cli = harness(new FakeRunner([]))
+    expect(await cli.run(['completion', 'bash'])).toBe(0)
+    const directory = mkdtempSync(join(tmpdir(), 'techne-bash-'))
+    try {
+      const definition = join(directory, 'techne.bash')
+      writeFileSync(definition, cli.output().stdout)
+      const result = spawnSync(
+        'bash',
+        [
+          '-c',
+          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]`,
+          '_',
+          definition
+        ],
+        { encoding: 'utf8' }
+      )
+      expect(result.status, result.stderr).toBe(0)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('Zsh completion registers from an autoload file under compinit', async () => {
+    const dollar = '$'
+    if (spawnSync('zsh', ['--version']).error) return
+    const cli = harness(new FakeRunner([]))
+    expect(await cli.run(['completion', 'zsh'])).toBe(0)
+    const directory = mkdtempSync(join(tmpdir(), 'techne-zsh-'))
+    try {
+      writeFileSync(join(directory, '_techne'), cli.output().stdout)
+      const result = spawnSync(
+        'zsh',
+        [
+          '-f',
+          '-c',
+          `fpath=("$1" $fpath); autoload -Uz compinit; compinit -D; [[ "${dollar}{_comps[techne]}" == _techne ]]`,
+          '_',
+          directory
+        ],
+        { encoding: 'utf8' }
+      )
+      expect(result.status, result.stderr).toBe(0)
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  test('rejects unsupported or incomplete completion syntax before help', async () => {
+    for (const args of [
+      ['completion'],
+      ['completion', 'fish'],
+      ['completion', 'bash', 'extra'],
+      ['completion', 'fish', '--help']
+    ]) {
+      const cli = harness(new FakeRunner([]))
+
+      expect(await cli.run(args)).toBe(2)
+      expect(cli.output().stderr).toContain('techne: error: completion requires exactly one supported shell')
+      expect(cli.output().stderr).toContain('Usage:')
+      expect(cli.output().stdout).toBe('')
+    }
   })
 
   test('reports offline installation and non-secret configuration diagnostics', async () => {

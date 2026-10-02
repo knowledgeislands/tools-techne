@@ -45,3 +45,7 @@ The local launcher records absolute paths to the checkout and Bun executable. It
 Run `techne --version` and `techne diag --json` from any directory. `diag` is offline and reports installation provenance and effective non-secret configuration. Run `man techne` if the manual directory is on `MANPATH`.
 
 If the shell cannot find `techne`, add its installation directory to `PATH` or reinstall into a directory already there. If `man techne` cannot find the manual, add the manual directory's parent to `MANPATH` or choose a searched `TECHNE_MAN_INSTALL_DIR`. A linked launcher that cannot find `src/main.ts` needs to be recreated from the current checkout.
+
+## Shell completion
+
+`techne completion bash` and `techne completion zsh` print completion source. For the current Bash session, run `source <(techne completion bash)`. For Zsh, write `techne completion zsh` to an `_techne` file in a directory on `fpath` before `compinit` runs. Keep persistent shell setup in your shell configuration or configuration manager; the installer does not edit it.

@@ -9,6 +9,9 @@ techne \- operate Knowledge Islands Techne Harness
 .B techne
 .RI [ global-options ]
 .I command
+.TP
+.B techne completion bash|zsh
+Print a completion definition for the selected shell.
 .SH DESCRIPTION
 \&
 .B techne
@@ -44,6 +47,24 @@ instance.
 Open a private interactive Session Manager bootstrap session on the
 controller.
 JSON output is not supported for this interactive command.
+.TP
+.B completion bash|zsh
+Print a sourceable Bash or Zsh completion definition to standard output.
+The installer does not alter shell startup files or completion directories.
+.SH COMPLETION
+\&
+.PP
+For the current Bash session, run
+.BR "source <(techne completion bash)" .
+For Zsh, write
+.B techne completion zsh
+to an
+.B _techne
+file in a directory on
+.B fpath
+before running
+.BR compinit .
+Keep persistent activation in shell configuration or a configuration manager.
 .SH GLOBAL OPTIONS
 \&
 .TP

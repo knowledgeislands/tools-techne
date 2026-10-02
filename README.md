@@ -14,9 +14,13 @@ techne doctor
 techne auth login
 techne controller status
 techne controller bootstrap
+techne completion bash
+techne completion zsh
 ```
 
 Use `techne --help` for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` remains offline, and authentication or bootstrap is explicit and interactive.
+
+`techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 
 ## Installation
 

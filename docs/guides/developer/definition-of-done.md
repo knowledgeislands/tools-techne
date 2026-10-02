@@ -17,7 +17,7 @@ Use this checklist before presenting a `tools-techne` change for review.
 - `release/package.sh` produces a platform archive containing `techne` and `man/techne.1`.
 - Release workflow validates an existing exact semantic-version tag, builds three supported targets, publishes checksums and verifies a draft release installation before publication.
 - `CHANGELOG.md` records the active semantic-version baseline.
-- Shell completion is deferred from the first release; documentation must not claim it exists.
+- `techne completion <bash|zsh>` prints shell definitions without changing user startup files or completion directories.
 
 ## Verification
 

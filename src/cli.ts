@@ -1,5 +1,6 @@
 import { loginConfiguredAuth } from './auth.ts'
 import { AwsClient, type ControllerStatus } from './aws.ts'
+import { renderCompletion } from './completion.ts'
 import { type Environment, type Invocation, parseInvocation } from './config.ts'
 import { TechneError } from './errors.ts'
 import type { CommandRunner } from './process.ts'
@@ -32,6 +33,7 @@ Usage:
   techne [global options] auth login
   techne [global options] controller status
   techne [global options] controller bootstrap
+  techne completion <bash|zsh>
 
 Global options:
   --profile <name>            AWS profile
@@ -204,13 +206,24 @@ const COMMAND_HANDLERS: Readonly<
   doctor,
   'auth login': authLogin,
   'controller status': controllerStatus,
-  'controller bootstrap': controllerBootstrap
+  'controller bootstrap': controllerBootstrap,
+  'completion bash': (_invocation, dependencies) => {
+    dependencies.io.stdout(renderCompletion('bash'))
+    return 0
+  },
+  'completion zsh': (_invocation, dependencies) => {
+    dependencies.io.stdout(renderCompletion('zsh'))
+    return 0
+  }
 }
 
 export async function runCli(argv: readonly string[], dependencies: CliDependencies): Promise<number> {
   try {
     const invocation = parseInvocation(argv, dependencies.environment)
     const name = commandName(invocation)
+    if (invocation.command[0] === 'completion' && name !== 'completion bash' && name !== 'completion zsh') {
+      throw new TechneError('completion requires exactly one supported shell: bash or zsh', 2)
+    }
     const handler = COMMAND_HANDLERS[name]
     if (name && !handler) {
       throw new TechneError(`unknown command: ${name}`, 2)
@@ -226,10 +239,11 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
     return await handler(invocation, dependencies)
   } catch (error) {
     if (error instanceof TechneError) {
-      dependencies.io.stderr(`error: ${error.message}\n`)
+      dependencies.io.stderr(`techne: error: ${error.message}\n`)
+      if (error.exitCode === 2) dependencies.io.stderr('Usage: techne [global options] <command>\n')
       return error.exitCode
     }
-    dependencies.io.stderr(`error: ${String(error)}\n`)
+    dependencies.io.stderr(`techne: error: ${String(error)}\n`)
     return 1
   }
 }
