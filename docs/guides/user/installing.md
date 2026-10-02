@@ -1,55 +1,47 @@
-# Install techne from a checkout
+# Install techne
 
-Use this guide to install the currently supported checkout-bound `techne` launcher and manual, verify the installation, or repair a launcher after the repository moves.
+Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The first release is `v0.1.0`.
 
-No immutable public release or Homebrew package is available yet. The local launcher records absolute paths to this checkout and its Bun executable.
+## Install an exact release
 
-## Before you begin
+Download the installer from the exact tag and pass the same tag as its positional argument:
 
-- Clone or otherwise obtain this `tools-techne` checkout.
-- Install `mise` with the repository toolchain activated, or install Bun `1.4.1` directly.
-- Ensure the installation directories are writable and the executable directory is on `PATH`.
+```sh
+curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
+  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.0/install.sh
+bash ./install.sh v0.1.0
+```
 
-## Install the launcher
+The installer chooses the macOS ARM64, macOS x64 or Linux x64 archive, checks it against the release checksum manifest, validates its contents and version, then installs the executable and manual. Run `bash ./install.sh` to install the latest published release from the same installer. The installer needs `curl`, `shasum` and `tar`; the released executable does not need Bun.
 
-From the repository root, run:
+By default, files go to `~/.local/bin/techne` and `~/.local/share/man/man1/techne.1`. Set both destinations when needed:
+
+```sh
+TECHNE_INSTALL_DIR="$HOME/bin" \
+TECHNE_MAN_INSTALL_DIR="$HOME/share/man/man1" \
+  bash ./install.sh v0.1.0
+```
+
+## Install with Homebrew
+
+```sh
+brew install knowledgeislands/tap/techne
+```
+
+The tap formula pins the exact release archives and SHA-256 checksums and installs the same manual.
+
+## Link a development checkout
+
+Clone the repository, activate its pinned Bun `1.4.1` toolchain, then run this from its root:
 
 ```sh
 ./install.sh --link
 ```
 
-By default, the installer writes `techne` to `~/.local/bin/techne` and links the manual at `~/.local/share/man/man1/techne.1`. To use other destinations, set both explicitly:
+The local launcher records absolute paths to the checkout and Bun executable. It does not download a release. If the checkout moves, rerun `./install.sh --link` from its new location. Destination overrides work for this mode too.
 
-```sh
-TECHNE_INSTALL_DIR="$HOME/bin" \
-TECHNE_MAN_INSTALL_DIR="$HOME/share/man/man1" \
-  ./install.sh --link
-```
+## Verify and recover
 
-The only installation mode is `--link`; `--help` shows usage. The installer does not download a release or modify the checkout.
+Run `techne --version` and `techne diag --json` from any directory. `diag` is offline and reports installation provenance and effective non-secret configuration. Run `man techne` if the manual directory is on `MANPATH`.
 
-## Verify
-
-Run these checks from any directory:
-
-```sh
-command -v techne
-techne --version
-techne diag
-```
-
-`techne diag` is offline. It reports installation provenance, runtime information, and effective non-secret configuration without contacting AWS.
-
-If the manual directory is visible to `man`, also run:
-
-```sh
-man techne
-```
-
-## Recovery
-
-If `techne` reports that `src/main.ts` cannot be found, the launcher still points at an old checkout location. Run `./install.sh --link` again from the current checkout.
-
-If the installer reports the wrong Bun version, activate the repository's `mise` toolchain or install Bun `1.4.1`, then rerun it. If the shell cannot find `techne`, add `TECHNE_INSTALL_DIR` to `PATH` or reinstall to a directory already present there.
-
-If `man techne` cannot find the manual, add the parent manual directory to `MANPATH` or choose a `TECHNE_MAN_INSTALL_DIR` already searched by `man`, then rerun the installer.
+If the shell cannot find `techne`, add its installation directory to `PATH` or reinstall into a directory already there. If `man techne` cannot find the manual, add the manual directory's parent to `MANPATH` or choose a searched `TECHNE_MAN_INSTALL_DIR`. A linked launcher that cannot find `src/main.ts` needs to be recreated from the current checkout.

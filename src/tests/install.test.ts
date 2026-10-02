@@ -72,12 +72,12 @@ describe('local installer', () => {
     expect(JSON.parse(diagnostic.stdout)).toMatchObject({ version: '0.1.0', installation: 'local' })
   })
 
-  test('rejects an implicit installation mode', async () => {
+  test('rejects an invalid installation version', async () => {
     const root = await mkdtemp(join(tmpdir(), 'techne-install-'))
     temporaryDirectories.push(root)
 
-    const result = await run(['bash', 'install.sh'], { TECHNE_INSTALL_DIR: join(root, 'bin') })
+    const result = await run(['bash', 'install.sh', 'v0.1'], { TECHNE_INSTALL_DIR: join(root, 'bin') })
     expect(result.exitCode).toBe(1)
-    expect(result.stderr).toContain('expected --link')
+    expect(result.stderr).toContain('version must match vX.Y.Z')
   })
 })

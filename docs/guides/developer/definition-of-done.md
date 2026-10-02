@@ -13,10 +13,11 @@ Use this checklist before presenting a `tools-techne` change for review.
 ## Distribution support
 
 - `install.sh --link` installs a checkout-bound launcher and manual into explicit local destinations.
-- `release/package.sh` produces one deterministic platform archive containing `techne` and `man/techne.1`.
-- Release workflow validates an existing exact semantic-version tag, builds three supported targets and publishes checksums.
+- `install.sh` installs latest or exact immutable release archives and verifies the checksum manifest, archive layout and executable version before replacing installed files.
+- `release/package.sh` produces a platform archive containing `techne` and `man/techne.1`.
+- Release workflow validates an existing exact semantic-version tag, builds three supported targets, publishes checksums and verifies a draft release installation before publication.
 - `CHANGELOG.md` records the active semantic-version baseline.
-- Direct exact-version installer downloads and shell completion are deferred from the first implementation baseline; documentation must not claim either exists.
+- Shell completion is deferred from the first release; documentation must not claim it exists.
 
 ## Verification
 
@@ -36,10 +37,10 @@ ki repo audit --repo .
 git diff --check
 ```
 
-Exercise mutating behaviour only against isolated fixtures. Live AWS operations, tags, releases and Homebrew changes require separate authority.
+Exercise mutating behaviour only against isolated fixtures. Live AWS operations and remote-environment management remain separately controlled.
 
 ## Review
 
 - Commit one coherent, verified unit with only intended paths staged.
 - Record unavailable checks, known gaps and receiver-owned follow-up explicitly.
-- Do not describe the repository as publicly installable until visibility, first-release and Homebrew work are accepted.
+- Verify the repository visibility, immutable release and Homebrew formula before describing those channels as available.

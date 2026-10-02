@@ -197,32 +197,33 @@ async function controllerBootstrap(invocation: Invocation, dependencies: CliDepe
   return 0
 }
 
+const COMMAND_HANDLERS: Readonly<
+  Record<string, (invocation: Invocation, dependencies: CliDependencies) => Promise<number> | number>
+> = {
+  diag,
+  doctor,
+  'auth login': authLogin,
+  'controller status': controllerStatus,
+  'controller bootstrap': controllerBootstrap
+}
+
 export async function runCli(argv: readonly string[], dependencies: CliDependencies): Promise<number> {
   try {
     const invocation = parseInvocation(argv, dependencies.environment)
+    const name = commandName(invocation)
+    const handler = COMMAND_HANDLERS[name]
+    if (name && !handler) {
+      throw new TechneError(`unknown command: ${name}`, 2)
+    }
     if (invocation.version) {
       dependencies.io.stdout(`${dependencies.runtime.version}\n`)
       return 0
     }
-    if (invocation.help || invocation.command.length === 0) {
+    if (invocation.help || !handler) {
       dependencies.io.stdout(HELP)
       return 0
     }
-
-    switch (commandName(invocation)) {
-      case 'diag':
-        return diag(invocation, dependencies)
-      case 'doctor':
-        return await doctor(invocation, dependencies)
-      case 'auth login':
-        return await authLogin(invocation, dependencies)
-      case 'controller status':
-        return await controllerStatus(invocation, dependencies)
-      case 'controller bootstrap':
-        return await controllerBootstrap(invocation, dependencies)
-      default:
-        throw new TechneError(`unknown command: ${commandName(invocation)}`, 2)
-    }
+    return await handler(invocation, dependencies)
   } catch (error) {
     if (error instanceof TechneError) {
       dependencies.io.stderr(`error: ${error.message}\n`)

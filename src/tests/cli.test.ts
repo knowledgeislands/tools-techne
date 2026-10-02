@@ -129,6 +129,8 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['controller', 'explode'])).toBe(2)
     expect(cli.output().stderr).toContain('unknown command')
+    expect(await cli.run(['controller', 'explode', '--help'])).toBe(2)
+    expect(await cli.run(['controller', 'explode', '--version'])).toBe(2)
   })
 
   test('logs in every configured authentication surface', async () => {

@@ -20,7 +20,15 @@ Use `techne --help` for command and option reference. The [user guides](docs/gui
 
 ## Installation
 
-No public release is available yet. Follow [Install techne from a checkout](docs/guides/user/installing.md) for the supported local-link installation and recovery procedure.
+Install the first release from its exact tag:
+
+```sh
+curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
+  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.0/install.sh
+bash ./install.sh v0.1.0
+```
+
+The [installation guide](docs/guides/user/installing.md) covers Homebrew, destination overrides, verification and local development links.
 
 ## Development
 
@@ -34,14 +42,14 @@ bun run self:typecheck
 bun run build
 ```
 
-The repository is not yet a published release. The [developer guides](docs/guides/developer/README.md) define review and first-release gates; Homebrew distribution begins only after an immutable accepted release exists.
+The [developer guides](docs/guides/developer/README.md) define review and release gates.
 
 ## Repository map
 
 - `src/` — CLI grammar, configuration, diagnostics and AWS adapter.
 - `bin/techne` — local source launcher.
 - `man/techne.1` — physical command manual.
-- `release/` — deterministic platform archive builder and smoke test.
+- `release/` — platform archive builder and installer smoke test.
 - `docs/guides/` — operator and developer guidance.
 - `docs/roadmap/` — forward work queue.
 

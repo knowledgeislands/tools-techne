@@ -4,7 +4,7 @@ All notable changes to `techne` are recorded here.
 
 ## Pre-1.0 baseline
 
-This is the consolidated current source baseline, not a 0.1.0 release entry. No release has been published.
+This is the consolidated 0.x command and capability baseline. Tags and GitHub releases retain each exact preview snapshot.
 
 ### Command surface
 
@@ -18,6 +18,6 @@ This is the consolidated current source baseline, not a 0.1.0 release entry. No 
 
 - Establish the standalone `tools-techne` repository and flat Bun/TypeScript CLI layout.
 - Provide offline diagnostics, local health checks, controller status and interactive controller bootstrap.
-- Add local-link installation, a physical manual and deterministic macOS/Linux release archives.
+- Add exact-version and latest-release installation, local-link installation, a physical manual and macOS/Linux release archives.
 
-No tag, GitHub release or Homebrew formula has been published. When a 0.x release is approved, its tag and release will retain the exact snapshot; the baseline remains consolidated until 1.0.
+The first release is `v0.1.0`. The baseline remains consolidated until 1.0.

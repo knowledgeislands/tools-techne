@@ -40,6 +40,8 @@ jobs:
           package_version=$(git show "$tag_commit:package.json" | bun -e \
             'let source=""; for await (const chunk of Bun.stdin.stream()) source += new TextDecoder().decode(chunk); console.log(JSON.parse(source).version)')
           test "$REQUESTED_VERSION" = "v$package_version"
+          source_version=$(git show "$tag_commit:src/version.ts" | sed -n "s/^export const TECHNE_VERSION = '\([^']*\)'$/\1/p")
+          test "$package_version" = "$source_version"
           git merge-base --is-ancestor "$tag_commit" "origin/$DEFAULT_BRANCH"
           printf 'version=%s\n' "$REQUESTED_VERSION" >> "$GITHUB_OUTPUT"
           printf 'tag-commit=%s\n' "$tag_commit" >> "$GITHUB_OUTPUT"
@@ -108,9 +110,24 @@ jobs:
               techne-"$VERSION"-linux-x64.tar.gz > techne-checksums.txt
             shasum -a 256 --check --strict techne-checksums.txt
           )
+          remote_commit=$(git ls-remote origin "refs/tags/$VERSION^{}" | cut -f1)
+          if [[ -z "$remote_commit" ]]; then
+            remote_commit=$(git ls-remote origin "refs/tags/$VERSION" | cut -f1)
+          fi
+          test "$remote_commit" = "${{ needs.validate.outputs.tag-commit }}"
           gh release create "$VERSION" --verify-tag --draft --title "$VERSION" --generate-notes \
             "$release_dir"/techne-"$VERSION"-darwin-arm64.tar.gz \
             "$release_dir"/techne-"$VERSION"-darwin-x64.tar.gz \
             "$release_dir"/techne-"$VERSION"-linux-x64.tar.gz \
             "$release_dir"/techne-checksums.txt
+          verify_dir=$(mktemp -d)
+          trap 'rm -rf "$verify_dir"' EXIT
+          gh release download "$VERSION" --dir "$verify_dir"
+          (cd "$verify_dir" && shasum -a 256 --check --strict techne-checksums.txt)
+          TECHNE_INSTALL_TEST_MODE=1 TECHNE_INSTALL_TEST_ASSETS="$verify_dir" \
+            TECHNE_INSTALL_DIR="$verify_dir/bin" TECHNE_MAN_INSTALL_DIR="$verify_dir/man/man1" \
+            bash install.sh "$VERSION"
+          test "$("$verify_dir/bin/techne" --version)" = "${VERSION#v}"
+          test -f "$verify_dir/man/man1/techne.1"
           gh release edit "$VERSION" --draft=false --latest
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" --jq '.immutable')" = true
