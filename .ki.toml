@@ -18,7 +18,7 @@ title = "tools-techne"
 description = "Techne operator command-line interface."
 repo_code = "TECHNE-TOOL"
 supported_runtimes = ["claude-code", "claude-desktop", "chatgpt-codex"]
-visibility = "private"
+visibility = "public"
 license = "MIT"
 
 [skills.ki-authoring]
