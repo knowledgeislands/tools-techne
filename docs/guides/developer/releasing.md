@@ -2,6 +2,8 @@
 
 `techne` releases use the same exact `vX.Y.Z` tag, public GitHub Release, verified installer and Homebrew handoff sequence as the other KI tools.
 
+The `ki-repo-tools` release-readiness checklist owns common release checks; this guide supplies Techne's platform archives and exact publication procedure.
+
 ## Prepare a candidate
 
 1. Satisfy the repository [definition of done](definition-of-done.md) on a clean commit.
@@ -30,3 +32,5 @@ TECHNE_INSTALL_DIR="$PWD/bin" TECHNE_MAN_INSTALL_DIR="$PWD/man/man1" bash ./inst
 ## Complete downstream distribution
 
 After immutable publication and fresh-install proof, hand the exact tag, asset URLs and checksums to `knowledgeislands/homebrew-tap`. The tap owns its formula, checksum, installation checks and consumer handoff. This repository does not publish from the Techne Harness.
+
+After the formula reaches the tap's default branch, check the website update pull request and its final disposition. A dispatched event alone does not prove that the website advanced; a first-time entry or a change beyond the exact version remains a receiver-owned decision.

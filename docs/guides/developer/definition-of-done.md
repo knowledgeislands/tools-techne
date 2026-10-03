@@ -2,6 +2,8 @@
 
 Use this checklist before presenting a `tools-techne` change for review.
 
+The `ki-repo-tools` change-readiness checklist owns cross-tool documentation, verification, and authority questions; the checks below apply them to Techne's typed operations and release artifacts.
+
 ## Tool contract
 
 - `bin/techne` is the primary source launcher and `src/version.ts` is the authoritative executable version.
