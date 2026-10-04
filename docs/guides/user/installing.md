@@ -42,7 +42,7 @@ The local launcher records absolute paths to the checkout and Bun executable. It
 
 ## Verify and recover
 
-Run `techne --version` and `techne diag --json` from any directory. `diag` is offline and reports installation provenance and effective non-secret configuration. Run `man techne` if the manual directory is on `MANPATH`.
+Run `techne --version` and `techne diag --json` from any directory. `diag` is offline and redacts local identifiers by default; `--full` reveals them deliberately. Run `man techne` if the manual directory is on `MANPATH`.
 
 If the shell cannot find `techne`, add its installation directory to `PATH` or reinstall into a directory already there. If `man techne` cannot find the manual, add the manual directory's parent to `MANPATH` or choose a searched `TECHNE_MAN_INSTALL_DIR`. A linked launcher that cannot find `src/main.ts` needs to be recreated from the current checkout.
 

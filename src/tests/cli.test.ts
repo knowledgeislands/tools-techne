@@ -97,6 +97,21 @@ describe('techne CLI', () => {
     expect(cli.output().stdout).toContain('Usage:')
   })
 
+  test('explains a named command without running providers', async () => {
+    const runner = new FakeRunner([])
+    const cli = harness(runner)
+    expect(await cli.run(['help'])).toBe(0)
+    expect(await cli.run(['help', 'diag'])).toBe(0)
+    expect(cli.output().stdout).toContain('diag [--full]')
+    expect(await cli.run(['help', 'controller', 'bootstrap'])).toBe(0)
+    expect(cli.output().stdout).toContain('controller bootstrap')
+    expect(runner.calls).toHaveLength(0)
+
+    const unknown = harness(runner)
+    expect(await unknown.run(['help', 'missing'])).toBe(2)
+    expect(unknown.output().stderr).toContain('unknown help topic')
+  })
+
   test('reports its version without running a subprocess', async () => {
     const runner = new FakeRunner([])
     const cli = harness(runner)
@@ -131,7 +146,7 @@ describe('techne CLI', () => {
         'bash',
         [
           '-c',
-          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]`,
+          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]; COMP_WORDS=(techne help controller bo); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == bootstrap ]]`,
           '_',
           definition
         ],
@@ -190,11 +205,12 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['diag', '--json'])).toBe(0)
     expect(JSON.parse(cli.output().stdout)).toMatchObject({
+      schema: 'techne/diag/v1',
       version: TECHNE_VERSION,
-      installation: 'local',
-      executable: '/checkout/src/main.ts',
-      configuration: { profile: 'local-profile' }
+      installation: 'local'
     })
+    expect(cli.output().stdout).not.toContain('/checkout')
+    expect(cli.output().stdout).not.toContain('local-profile')
     expect(cli.output().stdout).not.toContain('must-not-leak')
     expect(runner.calls).toHaveLength(0)
   })
@@ -204,7 +220,24 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['diag'])).toBe(0)
     expect(cli.output().stdout).toContain(`Techne ${TECHNE_VERSION}`)
-    expect(cli.output().stdout).toContain('controller stack:')
+    expect(cli.output().stdout).toContain('identifiers omitted')
+    expect(cli.output().stdout).not.toContain(ACCOUNT)
+  })
+
+  test('includes private diagnostic details only on explicit request', async () => {
+    const cli = harness(new FakeRunner([]), { AWS_PROFILE: 'local-profile' })
+    expect(await cli.run(['diag', '--full', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout)).toMatchObject({
+      details: { executable: '/checkout/src/main.ts', profile: 'local-profile' }
+    })
+
+    const human = harness(new FakeRunner([]), { AWS_PROFILE: 'local-profile' })
+    expect(await human.run(['diag', '--full'])).toBe(0)
+    expect(human.output().stdout).toContain('AWS profile: local-profile')
+
+    const invalid = harness(new FakeRunner([]))
+    expect(await invalid.run(['doctor', '--full'])).toBe(2)
+    expect(invalid.output().stderr).toContain('--full is only supported for diag')
   })
 
   test('rejects unknown commands', async () => {

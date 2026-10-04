@@ -11,6 +11,7 @@ export interface Invocation {
   command: readonly string[]
   config: TechneConfig
   json: boolean
+  full: boolean
   help: boolean
   version: boolean
 }
@@ -46,6 +47,7 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
   const config = environmentConfig(environment)
   const command: string[] = []
   let json = false
+  let full = false
   let help = false
   let version = false
 
@@ -53,6 +55,10 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
     const argument = argv[index] as string
     if (argument === '--json') {
       json = true
+      continue
+    }
+    if (argument === '--full') {
+      full = true
       continue
     }
     if (argument === '--help' || argument === '-h') {
@@ -79,5 +85,5 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
     command.push(argument)
   }
 
-  return { command, config, json, help, version }
+  return { command, config, json, full, help, version }
 }

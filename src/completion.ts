@@ -25,7 +25,11 @@ const BASH_COMPLETION = `_techne() {
   done
 
   case "$context" in
-    '') choices="diag doctor auth controller completion $options" ;;
+    '') choices="diag doctor auth controller completion help $options" ;;
+    diag) choices="--full $options" ;;
+    help) choices="diag doctor auth controller completion $options" ;;
+    'help auth') choices="login $options" ;;
+    'help controller') choices="status bootstrap $options" ;;
     auth) choices="login $options" ;;
     controller) choices="status bootstrap $options" ;;
     completion) choices='bash zsh' ;;
@@ -58,7 +62,11 @@ _techne() {
   done
 
   case "$context" in
-    '') candidates=(diag doctor auth controller completion "\${options[@]}") ;;
+    '') candidates=(diag doctor auth controller completion help "\${options[@]}") ;;
+    diag) candidates=(--full "\${options[@]}") ;;
+    help) candidates=(diag doctor auth controller completion "\${options[@]}") ;;
+    'help auth') candidates=(login "\${options[@]}") ;;
+    'help controller') candidates=(status bootstrap "\${options[@]}") ;;
     auth) candidates=(login "\${options[@]}") ;;
     controller) candidates=(status bootstrap "\${options[@]}") ;;
     completion) candidates=(bash zsh) ;;

@@ -8,8 +8,9 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 
 ### Command surface
 
-- `techne diag`
+- `techne diag [--full]`
 - `techne doctor`
+- `techne help [command]`
 - `techne auth login`
 - `techne controller status`
 - `techne controller bootstrap`
@@ -18,7 +19,7 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 ### Capabilities
 
 - Establish the standalone `tools-techne` repository and flat Bun/TypeScript CLI layout.
-- Provide offline diagnostics, local health checks, controller status and interactive controller bootstrap.
+- Provide share-safe offline diagnostics by default, with explicit `--full` local detail, local health checks, controller status and interactive controller bootstrap.
 - Add exact-version and latest-release installation, local-link installation, a physical manual and macOS/Linux release archives.
 - Print Bash and Zsh command and option completions without modifying shell startup files.
 

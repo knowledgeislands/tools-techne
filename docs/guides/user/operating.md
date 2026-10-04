@@ -12,7 +12,7 @@ Run:
 techne diag
 ```
 
-`diag` performs no network operation. It reports the executable, runtime, installation provenance, working directory, AWS profile and region, expected account, and controller stack. Use `techne diag --json` for structured output.
+`diag` performs no network operation. Its default text and `--json` output report share-safe version, runtime, and installation facts while redacting the executable path, working directory, AWS profile and region, expected account, and controller stack. Use `techne diag --full` when those local details are needed; review before sharing that output.
 
 The controller stack name is an effective configuration value, not a stack discovered or renamed by the CLI. Override it with `CONTROLLER_STACK_NAME` or `--controller-stack` when operating a different deployed stack.
 

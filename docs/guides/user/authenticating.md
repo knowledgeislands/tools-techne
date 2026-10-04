@@ -11,7 +11,7 @@ The current Techne configuration declares one authentication surface: AWS. Insta
 - Configure the selected AWS profile for the expected account. Expired-session recovery additionally requires an IAM Identity Center profile with an `sso_session` value.
 - Use an interactive terminal for login.
 
-Inspect the effective non-secret configuration without contacting AWS:
+Inspect share-safe configuration facts without contacting AWS; add `--full` only when you need to see the selected profile, region, or account locally:
 
 ```sh
 techne diag

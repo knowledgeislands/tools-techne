@@ -28,12 +28,13 @@ interface DoctorCheck {
 const HELP = `techne — operate the Techne controller and execution fabric
 
 Usage:
-  techne [global options] diag
+  techne [global options] diag [--full]
   techne [global options] doctor
   techne [global options] auth login
   techne [global options] controller status
   techne [global options] controller bootstrap
   techne completion <bash|zsh>
+  techne help [command]
 
 Global options:
   --profile <name>            AWS profile
@@ -41,9 +42,20 @@ Global options:
   --account <id>              expected AWS account
   --controller-stack <name>   controller CloudFormation stack
   --json                      machine-readable output where supported
+  --full                      include local paths and identifiers in diag
   -h, --help                  show help
   -V, --version               show version
 `
+
+const HELP_TOPICS: Readonly<Record<string, string>> = {
+  diag: 'Usage: techne [global options] diag [--full]\nReport share-safe local facts; --full includes paths and identifiers.\n',
+  doctor: 'Usage: techne [global options] doctor\nCheck local prerequisites and AWS identity without changing state.\n',
+  'auth login': 'Usage: techne [global options] auth login\nOpen an interactive authentication session.\n',
+  'controller status': 'Usage: techne [global options] controller status\nInspect the configured controller stack.\n',
+  'controller bootstrap':
+    'Usage: techne [global options] controller bootstrap\nOpen a private interactive bootstrap session.\n',
+  completion: 'Usage: techne completion <bash|zsh>\nPrint shell completion source.\n'
+}
 
 function commandName(invocation: Invocation): string {
   return invocation.command.join(' ')
@@ -113,17 +125,22 @@ async function doctor(invocation: Invocation, dependencies: CliDependencies): Pr
 
 function diag(invocation: Invocation, dependencies: CliDependencies): number {
   const report = {
+    schema: 'techne/diag/v1',
     version: dependencies.runtime.version,
     installation: dependencies.runtime.installation,
-    executable: dependencies.runtime.executable,
-    workingDirectory: dependencies.runtime.workingDirectory,
     runtime: `Bun ${dependencies.runtime.bunVersion}`,
-    configuration: {
-      profile: invocation.config.profile,
-      region: invocation.config.region,
-      expectedAccount: invocation.config.expectedAccount,
-      controllerStack: invocation.config.controllerStack
-    }
+    ...(invocation.full
+      ? {
+          details: {
+            executable: dependencies.runtime.executable,
+            workingDirectory: dependencies.runtime.workingDirectory,
+            profile: invocation.config.profile,
+            region: invocation.config.region,
+            expectedAccount: invocation.config.expectedAccount,
+            controllerStack: invocation.config.controllerStack
+          }
+        }
+      : {})
   }
   if (invocation.json) {
     dependencies.io.stdout(`${JSON.stringify(report)}\n`)
@@ -131,13 +148,17 @@ function diag(invocation: Invocation, dependencies: CliDependencies): number {
   }
   dependencies.io.stdout(`Techne ${report.version}\n`)
   dependencies.io.stdout(`installation: ${report.installation}\n`)
-  dependencies.io.stdout(`executable: ${report.executable}\n`)
-  dependencies.io.stdout(`working directory: ${report.workingDirectory}\n`)
   dependencies.io.stdout(`runtime: ${report.runtime}\n`)
-  dependencies.io.stdout(`AWS profile: ${report.configuration.profile}\n`)
-  dependencies.io.stdout(`AWS region: ${report.configuration.region}\n`)
-  dependencies.io.stdout(`expected AWS account: ${report.configuration.expectedAccount}\n`)
-  dependencies.io.stdout(`controller stack: ${report.configuration.controllerStack}\n`)
+  if (invocation.full) {
+    dependencies.io.stdout(`executable: ${dependencies.runtime.executable}\n`)
+    dependencies.io.stdout(`working directory: ${dependencies.runtime.workingDirectory}\n`)
+    dependencies.io.stdout(`AWS profile: ${invocation.config.profile}\n`)
+    dependencies.io.stdout(`AWS region: ${invocation.config.region}\n`)
+    dependencies.io.stdout(`expected AWS account: ${invocation.config.expectedAccount}\n`)
+    dependencies.io.stdout(`controller stack: ${invocation.config.controllerStack}\n`)
+  } else {
+    dependencies.io.stdout('Local paths and identifiers omitted; use diag --full to include them.\n')
+  }
   return 0
 }
 
@@ -223,6 +244,16 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
     const name = commandName(invocation)
     if (invocation.command[0] === 'completion' && name !== 'completion bash' && name !== 'completion zsh') {
       throw new TechneError('completion requires exactly one supported shell: bash or zsh', 2)
+    }
+    if (invocation.full && invocation.command[0] !== 'diag') {
+      throw new TechneError('--full is only supported for diag', 2)
+    }
+    if (invocation.command[0] === 'help') {
+      const topic = invocation.command.slice(1).join(' ')
+      const help = topic ? HELP_TOPICS[topic] : HELP
+      if (!help) throw new TechneError(`unknown help topic: ${topic}`, 2)
+      dependencies.io.stdout(help)
+      return 0
     }
     const handler = COMMAND_HANDLERS[name]
     if (name && !handler) {

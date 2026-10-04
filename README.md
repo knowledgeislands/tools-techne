@@ -10,6 +10,7 @@ The [user guides](docs/guides/user/README.md) explain how to install, authentica
 
 ```text
 techne diag
+techne help doctor
 techne doctor
 techne auth login
 techne controller status
@@ -18,7 +19,7 @@ techne completion bash
 techne completion zsh
 ```
 
-Use `techne --help` for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` remains offline, and authentication or bootstrap is explicit and interactive.
+Use `techne help [command]` or `techne --help` for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` is offline and redacts local identifiers by default; `diag --full` reveals them deliberately. Authentication or bootstrap is explicit and interactive.
 
 `techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 

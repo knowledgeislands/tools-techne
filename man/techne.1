@@ -23,8 +23,14 @@ configured AWS account boundary before controller operations.
 \&
 .TP
 .B diag
-Report version, installation provenance and effective non-secret
-configuration without network access.
+Report share-safe version, runtime and installation facts without network
+access.
+Local identifiers are redacted unless
+.B --full
+is supplied; review full output before sharing it.
+.TP
+.B help [command]
+Show general or command-specific help.
 .TP
 .B doctor
 Check the local runtime, AWS CLI, Session Manager plugin and expected
@@ -82,6 +88,9 @@ Select the controller CloudFormation stack.
 .TP
 .B --json
 Request machine-readable output where supported.
+.TP
+.B --full
+Include local paths and identifiers in diagnostic output.
 .TP
 .BR -h , " --help"
 Show command help.

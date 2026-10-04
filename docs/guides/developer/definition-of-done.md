@@ -7,7 +7,7 @@ The `ki-repo-tools` change-readiness checklist owns cross-tool documentation, ve
 ## Tool contract
 
 - `bin/techne` is the primary source launcher and `src/version.ts` is the authoritative executable version.
-- `--help`, `--version`, generated Bash/Zsh completion, README, user guides, the Pre-1.0 changelog baseline and `techne(1)` describe the same public command surface.
+- `--help`, `help [command]`, `--version`, generated Bash/Zsh completion, README, user guides, changelog and `techne(1)` describe the same public command surface, including diagnostic redaction defaults.
 - Command grammar and rendering remain separate from typed provider operations and subprocess execution.
 - Diagnostics exclude credentials and numeric operator identifiers.
 - Removed or deferred behaviour leaves no misleading compatibility surface.
