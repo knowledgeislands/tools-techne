@@ -2,8 +2,9 @@
 # Edit the owning skill contract, not the marker-bounded blocks below.
 
 # ki-repo:ignore:ki-repo:start
-# Generated reports, local metadata, logs, and runtime projections.
+# Generated reports, disposable tmp output, local metadata, logs, and runtime projections.
 reports/
+tmp/
 .DS_Store
 Thumbs.db
 .idea/
