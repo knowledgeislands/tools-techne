@@ -94,7 +94,3 @@ export = ["work", "knowledge"]
 import = ["work", "knowledge"]
 standing.export.knowledge = ["techne-interface-compatibility"]
 standing.import.knowledge = ["techne-interface-compatibility"]
-
-[skills.ki-trades.routes."knowledgeislands/ki-techne-principal"]
-import = ["work", "knowledge"]
-standing.import.knowledge = ["techne-architecture-context"]
