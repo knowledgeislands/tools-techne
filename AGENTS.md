@@ -8,12 +8,12 @@ Arcadia owns architectural roles, invariants and decision criteria. `tools-techn
 
 ## Working contract
 
-- Preserve unrelated work and treat the checkout as potentially shared. Re-check `HEAD`, status and staged paths before every commit; stage only explicitly owned paths.
+Use `ki-repo-tools` for shared CLI and delivery policy, `ki-engineering` for the Bun toolchain, `ki-authoring` for documents, and `ki-git` for commit and publication authority. The [definition of done](docs/guides/developer/definition-of-done.md) owns the local verification commands; [Release tools-techne](docs/guides/developer/releasing.md) owns the archive workflow.
+
 - Keep command modules responsible for grammar, validation and rendering. Keep provider clients responsible for typed external operations and safety checks.
 - Exercise behaviour through the in-process `runCli(args, dependencies)` seam. Tests must inject subprocess responses and must not contact AWS, Telegram or live infrastructure.
 - Keep credentials, numeric operator identifiers, provider sessions and raw updates out of Git, tests, logs and command arguments.
-- Use Bun `1.4.1` from the repository root. Do not create package-local lockfiles or dependency directories.
-- Do not push, tag, publish, release or update Homebrew without explicit authority.
+- Use the repository's pinned Bun from its root; this tool has one root dependency tree.
 
 ## Remote-environment hold
 

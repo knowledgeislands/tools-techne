@@ -1,17 +1,13 @@
 # Release tools-techne
 
-`techne` releases use the same exact `vX.Y.Z` tag, public GitHub Release, verified installer and Homebrew handoff sequence as the other KI tools.
-
 The `ki-repo-tools` release-readiness checklist owns common release checks; this guide supplies Techne's platform archives and exact publication procedure.
 
 ## Prepare a candidate
 
 1. Satisfy the repository [definition of done](definition-of-done.md) on a clean commit.
-2. Select the next semantic version and update `package.json`, `src/version.ts` and `techne(1)` together. For a 0.x candidate, refresh the consolidated Pre-1.0 command and capability baseline in `CHANGELOG.md` without adding a dated release section; from 1.0 onward, add a dated entry.
-3. Compare the candidate's `--help`, `--version` and Bash/Zsh completion output with the README command overview, user guides, Pre-1.0 changelog baseline and `techne(1)`. Every shipped command, option and installation instruction must agree; check the compiled release archive as well as the source launcher.
-4. Run every native verification gate, including the current-platform release archive smoke test.
-5. Confirm the repository is public and GitHub release immutability is enabled. Review both GitHub settings before changing them.
-6. Create and push an exact `vX.Y.Z` tag only after the candidate commit is accepted, pushed and CI passes. Never move a published tag.
+2. Apply the shared release-readiness checklist and update `package.json`, `src/version.ts` and `techne(1)` to the selected version.
+3. Check the compiled release archive as well as `bin/techne`, including the current-platform release archive smoke test.
+4. Create and push the exact `vX.Y.Z` tag through the shared publication procedure after the candidate's branch CI passes.
 
 ## Publish
 
@@ -22,15 +18,16 @@ The direct installer downloads a release archive and checksum manifest over HTTP
 Verify a fresh exact-version install in disposable directories after publication:
 
 ```sh
-curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
+techne_release_check=$(mktemp -d)
+curl --fail --location --proto '=https' --proto-redir '=https' --output "$techne_release_check/install.sh" \
   https://raw.githubusercontent.com/knowledgeislands/tools-techne/vX.Y.Z/install.sh
-TECHNE_INSTALL_DIR="$PWD/bin" TECHNE_MAN_INSTALL_DIR="$PWD/man/man1" bash ./install.sh vX.Y.Z
-./bin/techne --version
-./bin/techne diag --json
+TECHNE_INSTALL_DIR="$techne_release_check/bin" TECHNE_MAN_INSTALL_DIR="$techne_release_check/man/man1" \
+  bash "$techne_release_check/install.sh" vX.Y.Z
+"$techne_release_check/bin/techne" --version
+"$techne_release_check/bin/techne" diag --json
+MANPATH="$techne_release_check/man" man techne
 ```
 
 ## Complete downstream distribution
 
-After immutable publication and fresh-install proof, hand the exact tag, asset URLs and checksums to `knowledgeislands/homebrew-tap`. The tap owns its formula, checksum, installation checks and consumer handoff. This repository does not publish from the Techne Harness.
-
-After the formula reaches the tap's default branch, check the website update pull request and its final disposition. A dispatched event alone does not prove that the website advanced; a first-time entry or a change beyond the exact version remains a receiver-owned decision.
+Use the shared release-readiness checklist's tap and website handoff procedure with Techne's exact tag, platform archive URLs and checksums. The publishing repository is `tools-techne`; the Techne Harness does not publish these artifacts.

@@ -2,15 +2,13 @@
 
 Use this checklist before presenting a `tools-techne` change for review.
 
-The `ki-repo-tools` change-readiness checklist owns cross-tool documentation, verification, and authority questions; the checks below apply them to Techne's typed operations and release artifacts.
+Apply the `ki-repo-tools` change-readiness checklist for shared documentation, verification, and authority requirements, and `ki-git` for commit practice. The checks below are Techne's local additions; publication follows [Release tools-techne](releasing.md).
 
 ## Tool contract
 
 - `bin/techne` is the primary source launcher and `src/version.ts` is the authoritative executable version.
-- `--help`, `help [command]`, `--version`, generated Bash/Zsh completion, README, user guides, changelog and `techne(1)` describe the same public command surface, including diagnostic redaction defaults.
 - Command grammar and rendering remain separate from typed provider operations and subprocess execution.
 - Diagnostics exclude credentials and numeric operator identifiers.
-- Removed or deferred behaviour leaves no misleading compatibility surface.
 
 ## Distribution support
 
@@ -18,8 +16,6 @@ The `ki-repo-tools` change-readiness checklist owns cross-tool documentation, ve
 - `install.sh` installs latest or exact immutable release archives and verifies the checksum manifest, archive layout and executable version before replacing installed files.
 - `release/package.sh` produces a platform archive containing `techne` and `man/techne.1`.
 - Release workflow validates an existing exact semantic-version tag, builds three supported targets, publishes checksums and verifies a draft release installation before publication.
-- `CHANGELOG.md` records the active semantic-version baseline.
-- `techne completion <bash|zsh>` prints shell definitions without changing user startup files or completion directories.
 
 ## Verification
 
@@ -40,9 +36,3 @@ git diff --check
 ```
 
 Exercise mutating behaviour only against isolated fixtures. Live AWS operations and remote-environment management remain separately controlled.
-
-## Review
-
-- Commit one coherent, verified unit with only intended paths staged.
-- Record unavailable checks, known gaps and receiver-owned follow-up explicitly.
-- Verify the repository visibility, immutable release and Homebrew formula before describing those channels as available.
