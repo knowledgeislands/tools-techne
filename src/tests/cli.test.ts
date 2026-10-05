@@ -111,6 +111,8 @@ describe('techne CLI', () => {
       mkdirSync(join(directory, 'git-admin'))
       writeFileSync(join(directory, 'worktree/.git'), 'gitdir: ../git-admin\n')
       expect(await classify(worktree)).toBe('local')
+      writeFileSync(join(directory, 'worktree/.git'), 'gitdir: ../git-admin\r\n')
+      expect(await classify(worktree)).toBe('local')
       expect(await classify(fixture('copied'))).toBe('unknown')
       expect(await classify(join(directory, 'unavailable/src/main.ts'))).toBe('unknown')
       for (const name of [
