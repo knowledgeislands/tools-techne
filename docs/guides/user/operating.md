@@ -16,6 +16,8 @@ techne diag
 
 The controller stack name is an effective configuration value, not a stack discovered or renamed by the CLI. Override it with `CONTROLLER_STACK_NAME` or `--controller-stack` when operating a different deployed stack.
 
+Installation is `local` only when the physically resolved entrypoint belongs to an identified Techne development checkout, with its source/package layout and a Git directory or valid worktree pointer. Linked checkout entrypoints remain local. Arbitrary copied source or unavailable identity reports `unknown`; the embedded compiled runtime reports `release`. A source URL or filename alone is not proof.
+
 ## Check readiness
 
 Run:

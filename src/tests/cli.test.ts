@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { describe, expect, test } from 'vitest'
 import { type CliIo, runCli } from '../cli.ts'
 import type { CommandCall, CommandResult, CommandRunner, RunOptions } from '../process.ts'
-import type { TechneRuntime } from '../runtime.ts'
+import { processRuntime, type TechneRuntime } from '../runtime.ts'
 import { TECHNE_VERSION } from '../version.ts'
 
 const ACCOUNT = '655383751458'
@@ -82,6 +83,81 @@ function harness(
 }
 
 describe('techne CLI', () => {
+  test('proves checkout, linked-source, and worktree provenance without guessing from copied source', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'techne-provenance-'))
+    const fixture = (name: string): string => {
+      const root = join(directory, name)
+      mkdirSync(join(root, 'src'), { recursive: true })
+      mkdirSync(join(root, 'bin'), { recursive: true })
+      writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@knowledgeislands/techne' }))
+      writeFileSync(join(root, 'src/main.ts'), '// source entrypoint')
+      writeFileSync(join(root, 'bin/techne'), '#!/usr/bin/env bun')
+      return join(root, 'src/main.ts')
+    }
+    const classify = async (entrypoint: string): Promise<string> => {
+      const runner = new FakeRunner([])
+      const cli = harness(runner, {}, processRuntime(pathToFileURL(entrypoint).href))
+      expect(await cli.run(['diag', '--json'])).toBe(0)
+      expect(runner.calls).toHaveLength(0)
+      return JSON.parse(cli.output().stdout).installation
+    }
+    try {
+      const source = fixture('checkout')
+      mkdirSync(join(directory, 'checkout/.git'))
+      expect(await classify(source)).toBe('local')
+      symlinkSync(source, join(directory, 'linked-entrypoint.ts'))
+      expect(await classify(join(directory, 'linked-entrypoint.ts'))).toBe('local')
+      const worktree = fixture('worktree')
+      mkdirSync(join(directory, 'git-admin'))
+      writeFileSync(join(directory, 'worktree/.git'), 'gitdir: ../git-admin\n')
+      expect(await classify(worktree)).toBe('local')
+      expect(await classify(fixture('copied'))).toBe('unknown')
+      expect(await classify(join(directory, 'unavailable/src/main.ts'))).toBe('unknown')
+      for (const name of [
+        'wrong-entrypoint',
+        'directory-entrypoint',
+        'directory-manifest',
+        'directory-launcher',
+        'wrong-package',
+        'malformed-package',
+        'git-link',
+        'bad-worktree',
+        'file-gitdir'
+      ]) {
+        const entrypoint = fixture(name)
+        const root = join(directory, name)
+        mkdirSync(join(root, '.git'))
+        let observed = entrypoint
+        if (name === 'wrong-entrypoint') {
+          writeFileSync(join(root, 'copied-main.ts'), '// copied source')
+          observed = join(root, 'copied-main.ts')
+        } else if (name === 'directory-entrypoint') {
+          rmSync(entrypoint)
+          mkdirSync(entrypoint)
+        } else if (name === 'directory-manifest') {
+          rmSync(join(root, 'package.json'))
+          mkdirSync(join(root, 'package.json'))
+        } else if (name === 'directory-launcher') {
+          rmSync(join(root, 'bin/techne'))
+          mkdirSync(join(root, 'bin/techne'))
+        } else if (name === 'wrong-package')
+          writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'copied-tool' }))
+        else if (name === 'malformed-package') writeFileSync(join(root, 'package.json'), '{')
+        else {
+          rmSync(join(root, '.git'), { recursive: true })
+          if (name === 'git-link') symlinkSync(join(directory, 'git-admin'), join(root, '.git'))
+          else if (name === 'bad-worktree') writeFileSync(join(root, '.git'), 'not a gitdir marker\n')
+          else {
+            writeFileSync(join(directory, 'git-admin-file'), 'not a directory')
+            writeFileSync(join(root, '.git'), 'gitdir: ../git-admin-file\n')
+          }
+        }
+        expect(await classify(observed), name).toBe('unknown')
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
   test('normalizes host names and preserves every doctor check in the summary', async () => {
     for (const [platform, architecture, expected] of [
       ['win32', 'AMD64', 'windows'],

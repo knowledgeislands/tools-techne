@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { installationProvenance } from './installation-provenance.ts'
 import { TECHNE_VERSION } from './version.ts'
 
 export type InstallationMode = 'local' | 'release' | 'unknown'
@@ -17,7 +18,7 @@ export function processRuntime(metaUrl: string): TechneRuntime {
   const bundled = metaUrl.startsWith('file:///$bunfs/')
   return {
     version: TECHNE_VERSION,
-    installation: bundled ? 'release' : 'local',
+    installation: installationProvenance(metaUrl),
     executable: bundled ? process.execPath : fileURLToPath(metaUrl),
     workingDirectory: process.cwd(),
     bunVersion: process.versions.bun ?? 'unavailable',

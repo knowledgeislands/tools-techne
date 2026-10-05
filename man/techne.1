@@ -30,6 +30,9 @@ environment variables, and options rather than a file.
 Local identifiers are redacted unless
 .B --full
 is supplied; review full output before sharing it.
+Local provenance requires a resolved development checkout matching this tool's
+source/package layout and a Git checkout or worktree marker. Copied source
+without that evidence reports unknown; a source URL alone is insufficient.
 .TP
 .B help [command]
 Show general or command-specific help.

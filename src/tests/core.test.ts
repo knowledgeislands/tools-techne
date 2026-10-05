@@ -173,11 +173,11 @@ describe('AWS client', () => {
 })
 
 describe('runtime adapters', () => {
-  test('reports local and bundled execution provenance', () => {
+  test('does not mistake an unverified source path for a checkout and identifies bundled execution', () => {
     const local = processRuntime('file:///tmp/techne/main.ts')
     expect(local).toMatchObject({
       version: TECHNE_VERSION,
-      installation: 'local',
+      installation: 'unknown',
       executable: '/tmp/techne/main.ts',
       bunVersion: process.versions.bun ?? 'unavailable'
     })
