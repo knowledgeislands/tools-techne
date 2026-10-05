@@ -50,7 +50,7 @@
     "clean": "rm -rf dist node_modules reports",
     "ki:deps:update": "bun update --latest",
     "ki:tools:lint-man": "mandoc -T lint man/techne.1",
-    "prepare": "husky",
+    "prepare": "husky && bun install --frozen-lockfile --cwd tooling/boundaries",
     "self:release:test": "bash release/package.test.sh",
     "self:typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
