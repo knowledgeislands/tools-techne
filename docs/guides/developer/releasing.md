@@ -31,3 +31,5 @@ MANPATH="$techne_release_check/man" man techne
 ## Complete downstream distribution
 
 Use the shared release-readiness checklist's tap and website handoff procedure with Techne's exact tag, platform archive URLs and checksums. The publishing repository is `tools-techne`; the Techne Harness does not publish these artifacts.
+
+After publication, the release workflow's `Notify Homebrew tap` job sends a `tool-release-published` dispatch to `knowledgeislands/homebrew-tap` through the `ki-tools-release-bot` GitHub App; the tap then opens the exact formula pull request and squash-merges it automatically once its required checks pass. The job is skipped until the `KI_TOOLS_RELEASE_BOT_APP_ID` variable and `KI_TOOLS_RELEASE_BOT_PRIVATE_KEY` secret are available to this repository at organisation or repository level (not as `release`-environment secrets); the tap's daily scheduled intake still picks up a published immutable release without the dispatch.

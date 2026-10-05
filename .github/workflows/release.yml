@@ -140,3 +140,30 @@ jobs:
           test -f "$verify_dir/man/man1/techne.1"
           gh release edit "$VERSION" --draft=false --latest
           test "$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" --jq '.immutable')" = true
+
+  notify-homebrew-tap:
+    name: Notify Homebrew tap
+    needs: [validate, publish]
+    # Runs only once Kris has provisioned the shared release bot for this repository.
+    if: vars.KI_TOOLS_RELEASE_BOT_APP_ID != ''
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Create tap-scoped release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.KI_TOOLS_RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.KI_TOOLS_RELEASE_BOT_PRIVATE_KEY }}
+          owner: knowledgeislands
+          repositories: homebrew-tap
+      - name: Dispatch the published release to the tap
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          jq -n --arg repository "$GITHUB_REPOSITORY" --arg tag "$VERSION" \
+            '{event_type: "tool-release-published", client_payload: {repository: $repository, tag: $tag}}' |
+            gh api --method POST repos/knowledgeislands/homebrew-tap/dispatches --input -
+          printf 'Dispatched %s %s to knowledgeislands/homebrew-tap\n' "$GITHUB_REPOSITORY" "$VERSION" >> "$GITHUB_STEP_SUMMARY"
