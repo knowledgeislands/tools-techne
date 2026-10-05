@@ -6,9 +6,10 @@ Apply the `ki-repo-tools` change-readiness checklist for shared documentation, v
 
 ## Tool contract
 
-- `bin/techne` is the primary source launcher and `src/version.ts` is the authoritative executable version.
+- `bin/techne` is the primary source launcher; `src/version.ts` reads the authoritative executable version from `package.json`.
 - Command grammar and rendering remain separate from typed provider operations and subprocess execution.
 - Diagnostics exclude credentials and numeric operator identifiers.
+- Provider modules cannot import CLI grammar or rendering; runtime modules cannot import fixtures. The dependency-boundary suite proves the isolated supported parser reads the actual graph and detects a deliberately violating type-only import.
 
 ## Distribution support
 
@@ -23,6 +24,7 @@ Run:
 
 ```sh
 bun install --frozen-lockfile
+bun install --frozen-lockfile --cwd tooling/boundaries
 bun run test
 bun run test:coverage
 bun run self:typecheck

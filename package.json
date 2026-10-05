@@ -1,7 +1,7 @@
 {
   "name": "@knowledgeislands/techne",
   "description": "Techne operator command-line interface.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": "kris@kris.me.uk",
   "bin": {
     "techne": "bin/techne"
@@ -13,6 +13,7 @@
     "@types/bun": "^1.4.2",
     "@types/node": "^26.6.4",
     "@vitest/coverage-v8": "^5.0.3",
+    "dependency-cruiser": "^18.5.0",
     "husky": "^9.1.7",
     "knip": "^6.39.0",
     "lint-staged": "^17.6.0",

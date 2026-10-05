@@ -23,8 +23,6 @@ Use `techne help [command]` or `techne --help` for command and option reference.
 
 `techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 
-Completion support ships in `v0.1.1`; the earlier `v0.1.0` release does not include it.
-
 ## Installation
 
 Install the current release from its exact tag:
@@ -39,17 +37,7 @@ The [installation guide](docs/guides/user/installing.md) covers Homebrew, destin
 
 ## Development
 
-Use the repository-pinned toolchain:
-
-```sh
-bun install
-bun run test
-bun run test:coverage
-bun run self:typecheck
-bun run build
-```
-
-The [developer guides](docs/guides/developer/README.md) define review and release gates.
+Use the repository-pinned toolchain and the canonical commands in the [definition of done](docs/guides/developer/definition-of-done.md), including the isolated, locked boundary checker. Tests never download tooling or contact providers.
 
 ## Repository map
 

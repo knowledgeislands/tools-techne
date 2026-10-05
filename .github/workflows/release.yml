@@ -26,6 +26,7 @@ jobs:
           persist-credentials: false
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
       - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --cwd tooling/boundaries
       - run: bun run test
       - run: bun run test:coverage
       - id: release
@@ -40,8 +41,9 @@ jobs:
           package_version=$(git show "$tag_commit:package.json" | bun -e \
             'let source=""; for await (const chunk of Bun.stdin.stream()) source += new TextDecoder().decode(chunk); console.log(JSON.parse(source).version)')
           test "$REQUESTED_VERSION" = "v$package_version"
-          source_version=$(git show "$tag_commit:src/version.ts" | sed -n "s/^export const TECHNE_VERSION = '\([^']*\)'$/\1/p")
-          test "$package_version" = "$source_version"
+          version_source=$(git show "$tag_commit:src/version.ts")
+          grep -Fxq "import packageMetadata from '../package.json' with { type: 'json' }" <<<"$version_source"
+          grep -Fxq "export const TECHNE_VERSION = packageMetadata.version" <<<"$version_source"
           git merge-base --is-ancestor "$tag_commit" "origin/$DEFAULT_BRANCH"
           printf 'version=%s\n' "$REQUESTED_VERSION" >> "$GITHUB_OUTPUT"
           printf 'tag-commit=%s\n' "$tag_commit" >> "$GITHUB_OUTPUT"
@@ -72,6 +74,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes mandoc
       - run: bun install --frozen-lockfile
+      - run: bun install --frozen-lockfile --cwd tooling/boundaries
       - run: bash release/package.sh "${{ needs.validate.outputs.version }}" "${{ matrix.bun-target }}" "${{ matrix.asset-target }}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

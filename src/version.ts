@@ -1,1 +1,3 @@
-export const TECHNE_VERSION = '0.1.1'
+import packageMetadata from '../package.json' with { type: 'json' }
+
+export const TECHNE_VERSION = packageMetadata.version

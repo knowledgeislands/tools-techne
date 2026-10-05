@@ -1,6 +1,6 @@
 # Install techne
 
-Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The current release is `v0.1.1`.
+Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The published installation examples use `v0.1.1`; the source checkout prepares `v0.2.0` and does not imply that candidate has been published.
 
 ## Install an exact release
 
@@ -48,6 +48,6 @@ If the shell cannot find `techne`, add its installation directory to `PATH` or r
 
 ## Shell completion
 
-Completion is included in `v0.1.1` through both the installer and Homebrew. The earlier `v0.1.0` release does not contain this command.
+Completion is included through both the installer and Homebrew.
 
 `techne completion bash` and `techne completion zsh` print completion source. For the current Bash session, run `source <(techne completion bash)`. For Zsh, write `techne completion zsh` to an `_techne` file in a directory on `fpath` before `compinit` runs. Keep persistent shell setup in your shell configuration or configuration manager; the installer does not edit it.

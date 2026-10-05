@@ -1,0 +1,9 @@
+{
+  "name": "techne-boundary-tooling",
+  "private": true,
+  "description": "Isolated dependency checker using its supported TypeScript; never a runtime dependency.",
+  "dependencies": {
+    "dependency-cruiser": "^18.5.0",
+    "typescript": "^6.0.3"
+  }
+}

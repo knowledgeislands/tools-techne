@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { describe, expect, test } from 'vitest'
+import packageMetadata from '../../package.json' with { type: 'json' }
 import { type CliIo, runCli } from '../cli.ts'
 import type { CommandCall, CommandResult, CommandRunner, RunOptions } from '../process.ts'
 import { processRuntime, type TechneRuntime } from '../runtime.ts'
@@ -255,7 +256,7 @@ describe('techne CLI', () => {
     const cli = harness(runner)
 
     expect(await cli.run(['--version'])).toBe(0)
-    expect(cli.output().stdout).toBe(`${TECHNE_VERSION}\n`)
+    expect(cli.output().stdout).toBe(`${packageMetadata.version}\n`)
     expect(runner.calls).toHaveLength(0)
   })
 

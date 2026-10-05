@@ -5,7 +5,7 @@ The `ki-repo-tools` release-readiness checklist owns common release checks; this
 ## Prepare a candidate
 
 1. Satisfy the repository [definition of done](definition-of-done.md) on a clean commit.
-2. Apply the shared release-readiness checklist and update `package.json`, `src/version.ts` and `techne(1)` to the selected version.
+2. Apply the shared release-readiness checklist and update `package.json` and `techne(1)` to the selected version. `src/version.ts` reads the package version rather than maintaining another marker.
 3. Check the compiled release archive as well as `bin/techne`, including the current-platform release archive smoke test.
 4. Create and push the exact `vX.Y.Z` tag through the shared publication procedure after the candidate's branch CI passes.
 
