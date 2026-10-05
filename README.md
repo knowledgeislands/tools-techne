@@ -29,8 +29,8 @@ Install the current release from its exact tag:
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
-  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.1/install.sh
-bash ./install.sh v0.1.1
+  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.2.0/install.sh
+bash ./install.sh v0.2.0
 ```
 
 The [installation guide](docs/guides/user/installing.md) covers Homebrew, destination overrides, verification and local development links.

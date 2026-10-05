@@ -28,7 +28,7 @@ case "${1:-}" in
   --link) mode='link' ;;
   -h|--help) usage; exit 0 ;;
   v*) version=$1 ;;
-  *) die 'expected an exact version such as v0.1.1, or --link' ;;
+  *) die 'expected an exact version such as v0.2.0, or --link' ;;
 esac
 exact_version() { [[ "$1" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; }
 if [[ -n "$version" ]]; then exact_version "$version" || die 'version must match vX.Y.Z'; fi

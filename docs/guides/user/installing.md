@@ -1,6 +1,6 @@
 # Install techne
 
-Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The published installation examples use `v0.1.1`; the source checkout prepares `v0.2.0` and does not imply that candidate has been published.
+Install the immutable `techne` release, verify its executable and manual, or link a development checkout. The current release is `v0.2.0`.
 
 ## Install an exact release
 
@@ -8,8 +8,8 @@ Download the installer from the exact tag and pass the same tag as its positiona
 
 ```sh
 curl --fail --location --proto '=https' --proto-redir '=https' --output install.sh \
-  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.1.1/install.sh
-bash ./install.sh v0.1.1
+  https://raw.githubusercontent.com/knowledgeislands/tools-techne/v0.2.0/install.sh
+bash ./install.sh v0.2.0
 ```
 
 The installer chooses the macOS ARM64, macOS x64 or Linux x64 archive, checks it against the release checksum manifest, validates its contents and version, then installs the executable and manual. Run `bash ./install.sh` to install the latest published release from the same installer. The installer needs `curl`, `shasum` and `tar`; the released executable does not need Bun.
@@ -19,7 +19,7 @@ By default, files go to `~/.local/bin/techne` and `~/.local/share/man/man1/techn
 ```sh
 TECHNE_INSTALL_DIR="$HOME/bin" \
 TECHNE_MAN_INSTALL_DIR="$HOME/share/man/man1" \
-  bash ./install.sh v0.1.1
+  bash ./install.sh v0.2.0
 ```
 
 ## Install with Homebrew
