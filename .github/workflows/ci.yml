@@ -34,8 +34,8 @@ jobs:
           export PATH="$KI_CLI_INSTALL_DIR:$PATH"
           test "$(command -v ki)" = "$KI_CLI_INSTALL_DIR/ki"
           ki --version
-          ki manage diag | grep -F 'Installation: local'
-          ki manage diag | grep -F "Executable: $RUNNER_TEMP/tools-ki-source/src/main.ts"
+          ki diag | grep -F 'Installation: local'
+          ki diag --full | grep -F "Executable: $RUNNER_TEMP/tools-ki-source/src/main.ts"
           ki bootstrap
           ki registry add --repo .
           git clone --quiet --depth 1 --branch main https://github.com/knowledgeislands/ki-agentic-harness.git "$RUNNER_TEMP/ki-agentic-harness-source"
@@ -44,7 +44,9 @@ jobs:
           ki dev local set knowledgeislands/ki-agentic-harness "$RUNNER_TEMP/ki-agentic-harness-source"
           ki dev local on knowledgeislands/ki-agentic-harness
           ki repo repair --repo .
-          ki manage diag | grep -F 'Status: valid'
+          diag=$(ki diag)
+          grep -F 'Configuration: valid' <<<"$diag"
+          grep -F 'Registry: valid' <<<"$diag"
           ki harness list | grep -F 'knowledgeislands/ki-agentic-harness'
           printf '%s\n' "$KI_CLI_INSTALL_DIR" >> "$GITHUB_PATH"
           {
