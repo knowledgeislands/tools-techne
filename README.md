@@ -19,7 +19,7 @@ techne completion bash
 techne completion zsh
 ```
 
-Use `techne help [command]` or `techne --help` for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` is offline and redacts local identifiers by default; `diag --full` reveals them deliberately. Authentication or bootstrap is explicit and interactive.
+Use `techne help [command]` or `techne --help` for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` reports offline, share-safe tool/version, installation mode, executing host platform/architecture, runtime, and configuration presence; `diag --full` deliberately reveals local paths and identifiers. `doctor` adds its read-only scope, actionable checks, healthy/unhealthy verdict, and pass/warn/fail/skipped counts; it may contact AWS for identity, but does not check package freshness. Authentication or bootstrap is explicit and interactive.
 
 `techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 

@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url'
 import { TECHNE_VERSION } from './version.ts'
 
-export type InstallationMode = 'local' | 'release'
+export type InstallationMode = 'local' | 'release' | 'unknown'
 
 export interface TechneRuntime {
   version: string
@@ -9,6 +9,8 @@ export interface TechneRuntime {
   executable: string
   workingDirectory: string
   bunVersion: string
+  platform: string
+  architecture: string
 }
 
 export function processRuntime(metaUrl: string): TechneRuntime {
@@ -18,6 +20,8 @@ export function processRuntime(metaUrl: string): TechneRuntime {
     installation: bundled ? 'release' : 'local',
     executable: bundled ? process.execPath : fileURLToPath(metaUrl),
     workingDirectory: process.cwd(),
-    bunVersion: process.versions.bun ?? 'unavailable'
+    bunVersion: process.versions.bun ?? 'unavailable',
+    platform: process.platform,
+    architecture: process.arch
   }
 }

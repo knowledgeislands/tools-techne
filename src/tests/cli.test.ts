@@ -15,7 +15,9 @@ const LOCAL_RUNTIME: TechneRuntime = {
   installation: 'local',
   executable: '/checkout/src/main.ts',
   workingDirectory: '/checkout',
-  bunVersion: '1.4.1'
+  bunVersion: '1.4.1',
+  platform: 'darwin',
+  architecture: 'arm64'
 }
 
 class FakeRunner implements CommandRunner {
@@ -80,6 +82,64 @@ function harness(
 }
 
 describe('techne CLI', () => {
+  test('normalizes host names and preserves every doctor check in the summary', async () => {
+    for (const [platform, architecture, expected] of [
+      ['win32', 'AMD64', 'windows'],
+      ['linux', 'x64', 'linux']
+    ]) {
+      const cli = harness(
+        new FakeRunner([]),
+        {},
+        { ...LOCAL_RUNTIME, platform: platform as string, architecture: architecture as string }
+      )
+      expect(await cli.run(['diag', '--json'])).toBe(0)
+      expect(JSON.parse(cli.output().stdout)).toMatchObject({
+        platform: expected,
+        architecture: 'x86_64',
+        configuration: 'available (defaults and explicit overrides)'
+      })
+    }
+    const cli = harness(new FakeRunner([response('aws-cli/2'), response('1.2'), identity()]))
+    expect(await cli.run(['doctor', '--json'])).toBe(0)
+    const report = JSON.parse(cli.output().stdout)
+    expect(report).toMatchObject({
+      tool: 'techne',
+      installation: 'local',
+      platform: 'macos',
+      architecture: 'arm64',
+      verdict: 'healthy',
+      counts: { pass: 5, warn: 0, fail: 0, skipped: 0 }
+    })
+    expect(Object.values(report.counts).reduce((sum: number, value) => sum + Number(value), 0)).toBe(
+      report.checks.length
+    )
+    expect(cli.output().stdout).not.toContain(ACCOUNT)
+    expect(cli.output().stdout).not.toContain('/checkout')
+  })
+
+  test('reports unknown provenance honestly and unavailable identity as skipped', async () => {
+    const cli = harness(
+      new FakeRunner([response('aws-cli/2'), response('1.2'), identity()]),
+      {},
+      { ...LOCAL_RUNTIME, installation: 'unknown' }
+    )
+    expect(await cli.run(['doctor', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout)).toMatchObject({
+      installation: 'unknown',
+      verdict: 'healthy',
+      counts: { pass: 4, warn: 1, fail: 0, skipped: 0 }
+    })
+    const missing = harness(
+      new FakeRunner([response('', '', 127), response('', '', 127)]),
+      {},
+      { ...LOCAL_RUNTIME, installation: 'release', bunVersion: 'unavailable' }
+    )
+    expect(await missing.run(['doctor', '--json'])).toBe(1)
+    expect(JSON.parse(missing.output().stdout)).toMatchObject({
+      verdict: 'unhealthy',
+      counts: { pass: 1, warn: 0, fail: 3, skipped: 1 }
+    })
+  })
   test('shows help without running a subprocess', async () => {
     const runner = new FakeRunner([])
     const cli = harness(runner)
@@ -219,7 +279,15 @@ describe('techne CLI', () => {
     const cli = harness(new FakeRunner([]))
 
     expect(await cli.run(['diag'])).toBe(0)
-    expect(cli.output().stdout).toContain(`Techne ${TECHNE_VERSION}`)
+    expect(cli.output().stdout).toContain(`Version: ${TECHNE_VERSION}`)
+    for (const field of [
+      'Tool: techne',
+      'Platform: macos',
+      'Architecture: arm64',
+      'Runtime: Bun 1.4.1',
+      'Configuration: available'
+    ])
+      expect(cli.output().stdout).toContain(field)
     expect(cli.output().stdout).toContain('identifiers omitted')
     expect(cli.output().stdout).not.toContain(ACCOUNT)
   })
@@ -326,7 +394,7 @@ describe('techne CLI', () => {
     expect(JSON.parse(cli.output().stdout).checks).toContainEqual({
       name: 'aws-account',
       ok: false,
-      detail: 'TechneError: AWS identity check failed: denied'
+      detail: 'AWS identity check failed; run techne auth login and verify the expected account with techne diag --full'
     })
   })
 
@@ -493,10 +561,15 @@ describe('techne CLI', () => {
   test('reports unexpected runner failures', async () => {
     const errorCli = harness(new ThrowingRunner(new Error('boom')))
     expect(await errorCli.run(['doctor'])).toBe(1)
-    expect(errorCli.output().stderr).toContain('Error: boom')
+    expect(errorCli.output().stderr).toBe('')
+    expect(errorCli.output().stdout).toContain('Checks: pass=2 warn=0 fail=2 skipped=1')
 
     const stringCli = harness(new ThrowingRunner('boom'))
     expect(await stringCli.run(['doctor'])).toBe(1)
-    expect(stringCli.output().stderr).toContain('boom')
+    expect(stringCli.output().stderr).toBe('')
+    expect(stringCli.output().stdout).toContain('Verdict: unhealthy')
+    const otherCommand = harness(new ThrowingRunner(new Error('boom')))
+    expect(await otherCommand.run(['controller', 'status'])).toBe(1)
+    expect(otherCommand.output().stderr).toContain('Error: boom')
   })
 })

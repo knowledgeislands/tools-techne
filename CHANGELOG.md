@@ -20,6 +20,7 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 
 - Establish the standalone `tools-techne` repository and flat Bun/TypeScript CLI layout.
 - Provide share-safe offline diagnostics by default, with explicit `--full` local detail, local health checks, controller status and interactive controller bootstrap.
+- Align diagnostics and doctor context across tools: tool/version, proven installation mode, executing platform/architecture, runtime/version, and configuration presence. Doctor reports read-only scope, actionable findings, verdict, and pass/warn/fail/skipped counts; unavailable AWS identity checks are explicit and numeric identities stay private.
 - Add exact-version and latest-release installation, local-link installation, a physical manual and macOS/Linux release archives.
 - Print Bash and Zsh command and option completions without modifying shell startup files.
 

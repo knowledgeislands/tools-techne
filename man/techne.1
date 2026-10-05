@@ -1,4 +1,4 @@
-.TH TECHNE 1 "2026-10-02" "techne 0.1.1" "User Commands"
+.TH TECHNE 1 "2026-10-05" "techne 0.1.1" "User Commands"
 .SH NAME
 \&
 .PP
@@ -23,8 +23,10 @@ configured AWS account boundary before controller operations.
 \&
 .TP
 .B diag
-Report share-safe version, runtime and installation facts without network
-access.
+Report share-safe tool/version, local/release/unknown installation mode,
+executing host platform and architecture, runtime/version, and effective
+configuration presence without network access. Configuration uses defaults,
+environment variables, and options rather than a file.
 Local identifiers are redacted unless
 .B --full
 is supplied; review full output before sharing it.
@@ -35,6 +37,11 @@ Show general or command-specific help.
 .B doctor
 Check the local runtime, AWS CLI, Session Manager plugin and expected
 AWS identity.
+Show the same diagnostic context, read-only scope, healthy/unhealthy verdict,
+and pass/warn/fail/skipped counts. Identity may contact AWS but never changes
+provider state; unavailable prerequisite checks report actionable failures and
+dependent identity checks are explicitly skipped. Numeric account identities
+and raw provider errors are omitted. Health does not imply package freshness.
 .TP
 .B auth login
 Reconcile authentication surfaces declared by the effective Techne

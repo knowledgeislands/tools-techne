@@ -12,3 +12,5 @@ bun install --frozen-lockfile
 - [Release tools-techne](releasing.md) defines the first-release boundary and downstream Homebrew handoff.
 
 Tests exercise `runCli(args, dependencies)` with injected subprocess responses. They must not contact AWS, Telegram or live infrastructure.
+
+Diagnostic tests inject executing host/runtime facts and local, release, or unknown provenance. Verify `diag` and `doctor` share the common context, default diagnostics redact local details, and every evaluated or skipped doctor check contributes once to its counts. Operational prerequisite failures must still produce a complete report without leaking raw provider output or implying package freshness.

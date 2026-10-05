@@ -23,6 +23,7 @@ interface DoctorCheck {
   name: string
   ok: boolean
   detail: string
+  status?: 'warn' | 'skipped'
 }
 
 const HELP = `techne — operate the Techne controller and execution fabric
@@ -48,8 +49,9 @@ Global options:
 `
 
 const HELP_TOPICS: Readonly<Record<string, string>> = {
-  diag: 'Usage: techne [global options] diag [--full]\nReport share-safe local facts; --full includes paths and identifiers.\n',
-  doctor: 'Usage: techne [global options] doctor\nCheck local prerequisites and AWS identity without changing state.\n',
+  diag: 'Usage: techne [global options] diag [--full]\nReport share-safe tool, installation, host, runtime, and configuration facts; --full includes paths and identifiers.\n',
+  doctor:
+    'Usage: techne [global options] doctor\nReport diagnostic context, read-only local prerequisite and AWS identity checks, verdict, and counts; freshness is not checked.\n',
   'auth login': 'Usage: techne [global options] auth login\nOpen an interactive authentication session.\n',
   'controller status': 'Usage: techne [global options] controller status\nInspect the configured controller stack.\n',
   'controller bootstrap':
@@ -65,12 +67,46 @@ function cleanVersion(result: { stdout: string; stderr: string }): string {
   return (result.stdout.trim() || result.stderr.trim()).split('\n', 1)[0] as string
 }
 
+function diagnosticContext(dependencies: CliDependencies) {
+  return {
+    tool: 'techne',
+    version: dependencies.runtime.version,
+    installation: dependencies.runtime.installation,
+    platform:
+      ({ darwin: 'macos', win32: 'windows' } as Record<string, string>)[dependencies.runtime.platform] ??
+      dependencies.runtime.platform,
+    architecture:
+      ({ x64: 'x86_64', AMD64: 'x86_64' } as Record<string, string>)[dependencies.runtime.architecture] ??
+      dependencies.runtime.architecture,
+    runtime: `Bun ${dependencies.runtime.bunVersion}`,
+    configuration: 'available (defaults and explicit overrides)'
+  }
+}
+
+function printContext(dependencies: CliDependencies): void {
+  for (const [label, value] of Object.entries(diagnosticContext(dependencies))) {
+    dependencies.io.stdout(`${label.charAt(0).toUpperCase()}${label.slice(1)}: ${value}\n`)
+  }
+}
+
+async function prerequisite(
+  dependencies: CliDependencies,
+  command: string
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  try {
+    return await dependencies.runner.run(command, ['--version'])
+  } catch {
+    return { stdout: '', stderr: '', exitCode: 1 }
+  }
+}
+
 async function doctor(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
   const checks: DoctorCheck[] = [
     {
       name: 'installation',
       ok: true,
-      detail: `${dependencies.runtime.installation} (${dependencies.runtime.executable})`
+      detail: dependencies.runtime.installation,
+      ...(dependencies.runtime.installation === 'unknown' ? { status: 'warn' as const } : {})
     }
   ]
   if (dependencies.runtime.installation === 'local') {
@@ -83,42 +119,71 @@ async function doctor(invocation: Invocation, dependencies: CliDependencies): Pr
           : `running Bun ${dependencies.runtime.bunVersion}; expected 1.4.1`
     })
   } else {
-    checks.push({ name: 'runtime', ok: true, detail: `embedded Bun ${dependencies.runtime.bunVersion}` })
+    checks.push({
+      name: 'runtime',
+      ok: dependencies.runtime.bunVersion !== 'unavailable',
+      detail: `${dependencies.runtime.installation === 'release' ? 'embedded ' : ''}Bun ${dependencies.runtime.bunVersion}`
+    })
   }
-  const awsVersion = await dependencies.runner.run('aws', ['--version'])
+  const awsVersion = await prerequisite(dependencies, 'aws')
   checks.push({
     name: 'aws',
     ok: awsVersion.exitCode === 0,
-    detail: awsVersion.exitCode === 0 ? cleanVersion(awsVersion) : 'AWS CLI is unavailable'
+    detail: awsVersion.exitCode === 0 ? cleanVersion(awsVersion) : 'AWS CLI is unavailable; install awscli and retry'
   })
 
-  const pluginVersion = await dependencies.runner.run('session-manager-plugin', ['--version'])
+  const pluginVersion = await prerequisite(dependencies, 'session-manager-plugin')
   checks.push({
     name: 'session-manager-plugin',
     ok: pluginVersion.exitCode === 0,
-    detail: pluginVersion.exitCode === 0 ? cleanVersion(pluginVersion) : 'AWS Session Manager plugin is unavailable'
+    detail:
+      pluginVersion.exitCode === 0
+        ? cleanVersion(pluginVersion)
+        : 'AWS Session Manager plugin is unavailable; install session-manager-plugin and retry'
   })
 
   if (awsVersion.exitCode === 0) {
     try {
-      const account = await new AwsClient(dependencies.runner, invocation.config).account()
-      checks.push({ name: 'aws-account', ok: true, detail: account })
-    } catch (error) {
+      await new AwsClient(dependencies.runner, invocation.config).account()
+      checks.push({ name: 'aws-account', ok: true, detail: 'expected AWS identity verified' })
+    } catch {
       checks.push({
         name: 'aws-account',
         ok: false,
-        detail: String(error)
+        detail:
+          'AWS identity check failed; run techne auth login and verify the expected account with techne diag --full'
       })
     }
-  }
+  } else
+    checks.push({
+      name: 'aws-account',
+      ok: true,
+      status: 'skipped',
+      detail: 'AWS CLI is unavailable; restore it before checking identity'
+    })
 
   const ok = checks.every((check) => check.ok)
+  const counts = {
+    pass: checks.filter((check) => check.ok && !check.status).length,
+    warn: checks.filter((check) => check.status === 'warn').length,
+    fail: checks.filter((check) => !check.ok).length,
+    skipped: checks.filter((check) => check.status === 'skipped').length
+  }
+  const verdict = !ok ? 'unhealthy' : 'healthy'
+  const scope = 'read-only local prerequisites and AWS identity (may contact AWS); freshness not checked'
   if (invocation.json) {
-    dependencies.io.stdout(`${JSON.stringify({ ok, checks })}\n`)
+    dependencies.io.stdout(
+      `${JSON.stringify({ ...diagnosticContext(dependencies), scope, verdict, counts, ok, checks })}\n`
+    )
   } else {
+    printContext(dependencies)
+    dependencies.io.stdout(`Scope: ${scope}\n`)
     for (const check of checks) {
-      dependencies.io.stdout(`${check.ok ? 'ok' : 'fail'} ${check.name}: ${check.detail}\n`)
+      dependencies.io.stdout(`${check.status ?? (check.ok ? 'ok' : 'fail')} ${check.name}: ${check.detail}\n`)
     }
+    dependencies.io.stdout(
+      `Verdict: ${verdict}\nChecks: pass=${counts.pass} warn=${counts.warn} fail=${counts.fail} skipped=${counts.skipped}\n`
+    )
   }
   return ok ? 0 : 1
 }
@@ -126,9 +191,7 @@ async function doctor(invocation: Invocation, dependencies: CliDependencies): Pr
 function diag(invocation: Invocation, dependencies: CliDependencies): number {
   const report = {
     schema: 'techne/diag/v1',
-    version: dependencies.runtime.version,
-    installation: dependencies.runtime.installation,
-    runtime: `Bun ${dependencies.runtime.bunVersion}`,
+    ...diagnosticContext(dependencies),
     ...(invocation.full
       ? {
           details: {
@@ -146,9 +209,7 @@ function diag(invocation: Invocation, dependencies: CliDependencies): number {
     dependencies.io.stdout(`${JSON.stringify(report)}\n`)
     return 0
   }
-  dependencies.io.stdout(`Techne ${report.version}\n`)
-  dependencies.io.stdout(`installation: ${report.installation}\n`)
-  dependencies.io.stdout(`runtime: ${report.runtime}\n`)
+  printContext(dependencies)
   if (invocation.full) {
     dependencies.io.stdout(`executable: ${dependencies.runtime.executable}\n`)
     dependencies.io.stdout(`working directory: ${dependencies.runtime.workingDirectory}\n`)
