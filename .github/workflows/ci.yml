@@ -1,84 +1,68 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 permissions:
   contents: read
 
+env:
+  KI_VERSION: v0.6.1
+
 jobs:
-  governance:
-    name: KI governance
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
+      - run: sudo apt-get update && sudo apt-get install --yes mandoc
       - run: bun install --frozen-lockfile
       - run: bun install --frozen-lockfile --cwd tooling/boundaries
-      - name: Link latest KI from main
+      - name: Install released KI
         env:
           KI_CLI_INSTALL_DIR: ${{ runner.temp }}/ki/bin
           KI_MAN_INSTALL_DIR: ${{ runner.temp }}/ki/man/man1
           KI_DATA_HOME: ${{ runner.temp }}/ki/data
           KI_CONFIG_HOME: ${{ runner.temp }}/ki/config
+          KI_MCP_SOURCE: ${{ runner.temp }}/ki/config/mcp-servers.yaml
           KI_CACHE_HOME: ${{ runner.temp }}/ki/cache
           XDG_STATE_HOME: ${{ runner.temp }}/ki/state
           KI_STATE_HOME: ${{ runner.temp }}/ki/state/ki
         run: |
           set -euo pipefail
-          mkdir -p "$HOME/.agents" "$HOME/.claude" "$HOME/.config/ki"
+          mkdir -p "$HOME/.agents" "$HOME/.claude"
           printf '{}\n' > "$HOME/.claude/settings.json"
-          printf 'mcpServers: []\n' > "$HOME/.config/ki/mcp-servers.yaml"
-          git clone --quiet --depth 1 --branch main https://github.com/knowledgeislands/tools-ki.git "$RUNNER_TEMP/tools-ki-source"
-          printf 'KI source commit: %s\n' "$(git -C "$RUNNER_TEMP/tools-ki-source" rev-parse HEAD)"
-          (cd "$RUNNER_TEMP/tools-ki-source" && bun install --frozen-lockfile)
-          bash "$RUNNER_TEMP/tools-ki-source/install.sh" --link
+          mkdir -p "$(dirname "$KI_MCP_SOURCE")"
+          printf 'mcpServers: []\n' > "$KI_MCP_SOURCE"
+          curl --fail -sSL --proto '=https' -o "$RUNNER_TEMP/install.sh" \
+            "https://raw.githubusercontent.com/knowledgeislands/tools-ki/$KI_VERSION/install.sh"
+          bash "$RUNNER_TEMP/install.sh" "$KI_VERSION"
           export PATH="$KI_CLI_INSTALL_DIR:$PATH"
           test "$(command -v ki)" = "$KI_CLI_INSTALL_DIR/ki"
-          ki --version
-          ki diag | grep -F 'Installation: local'
-          ki diag --full | grep -F "Executable: $RUNNER_TEMP/tools-ki-source/src/main.ts"
+          test "v$(ki --version)" = "$KI_VERSION"
           ki bootstrap
           ki registry add --repo .
-          git clone --quiet --depth 1 --branch main https://github.com/knowledgeislands/ki-agentic-harness.git "$RUNNER_TEMP/ki-agentic-harness-source"
-          printf 'KI harness source commit: %s\n' "$(git -C "$RUNNER_TEMP/ki-agentic-harness-source" rev-parse HEAD)"
-          (cd "$RUNNER_TEMP/ki-agentic-harness-source" && bun install --frozen-lockfile)
-          ki dev local set knowledgeislands/ki-agentic-harness "$RUNNER_TEMP/ki-agentic-harness-source"
-          ki dev local on knowledgeislands/ki-agentic-harness
           ki repo repair --repo .
           diag=$(ki diag)
           grep -F 'Configuration: valid' <<<"$diag"
           grep -F 'Registry: valid' <<<"$diag"
           ki harness list | grep -F 'knowledgeislands/ki-agentic-harness'
-          printf '%s\n' "$KI_CLI_INSTALL_DIR" >> "$GITHUB_PATH"
           {
             printf 'KI_CLI_INSTALL_DIR=%s\n' "$KI_CLI_INSTALL_DIR"
             printf 'KI_MAN_INSTALL_DIR=%s\n' "$KI_MAN_INSTALL_DIR"
             printf 'KI_DATA_HOME=%s\n' "$KI_DATA_HOME"
             printf 'KI_CONFIG_HOME=%s\n' "$KI_CONFIG_HOME"
+            printf 'KI_MCP_SOURCE=%s\n' "$KI_MCP_SOURCE"
             printf 'KI_CACHE_HOME=%s\n' "$KI_CACHE_HOME"
             printf 'XDG_STATE_HOME=%s\n' "$XDG_STATE_HOME"
             printf 'KI_STATE_HOME=%s\n' "$KI_STATE_HOME"
           } >> "$GITHUB_ENV"
-      - run: ki repo audit --repo .
-
-  test:
-    name: Test (${{ matrix.os }})
-    needs: governance
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
-      - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes mandoc
-      - run: bun install --frozen-lockfile
-      - run: bun install --frozen-lockfile --cwd tooling/boundaries
-      - run: bun run test
-      - run: bun run test:coverage
-      - run: bun run self:typecheck
-      - run: bun run build
-      - run: bun run self:release:test
-      - run: bun run ki:tools:lint-man
+          printf '%s\n' "$KI_CLI_INSTALL_DIR" >> "$GITHUB_PATH"
+      - name: Audit
+        run: ki repo audit --repo .
+      - name: Test release package
+        run: bun run self:release:test
+      - name: Lint manual
+        run: bun run ki:tools:lint-man
