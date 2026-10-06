@@ -32,7 +32,7 @@ The tap formula pins the exact release archives and SHA-256 checksums and instal
 
 ## Link a development checkout
 
-Clone the repository, activate its pinned Bun `1.4.1` toolchain, then run this from its root:
+Clone the repository, activate its pinned Bun `1.4.2` toolchain, then run this from its root:
 
 ```sh
 ./install.sh --link

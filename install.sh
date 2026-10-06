@@ -41,7 +41,7 @@ install_link() {
   else
     bun_executable=$(command -v bun) || die 'Bun is required for local link installation'
   fi
-  [[ "$("$bun_executable" --version)" == '1.4.1' ]] || die 'the local checkout requires Bun 1.4.1'
+  [[ "$("$bun_executable" --version)" == '1.4.2' ]] || die 'the local checkout requires Bun 1.4.2'
   source_entry="$script_dir/src/main.ts"
   man_source="$script_dir/man/techne.1"
   [[ -f "$source_entry" && -f "$man_source" ]] || die 'local source or manual is missing'

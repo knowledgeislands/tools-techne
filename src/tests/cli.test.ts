@@ -17,7 +17,7 @@ const LOCAL_RUNTIME: TechneRuntime = {
   installation: 'local',
   executable: '/checkout/src/main.ts',
   workingDirectory: '/checkout',
-  bunVersion: '1.4.1',
+  bunVersion: '1.4.2',
   platform: 'darwin',
   architecture: 'arm64'
 }
@@ -363,7 +363,7 @@ describe('techne CLI', () => {
       'Tool: techne',
       'Platform: macos',
       'Architecture: arm64',
-      'Runtime: Bun 1.4.1',
+      'Runtime: Bun 1.4.2',
       'Configuration: available'
     ])
       expect(cli.output().stdout).toContain(field)
@@ -483,19 +483,19 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['doctor', '--json'])).toBe(0)
     const report = JSON.parse(cli.output().stdout)
-    expect(report.checks).toContainEqual({ name: 'runtime', ok: true, detail: 'embedded Bun 1.4.1' })
+    expect(report.checks).toContainEqual({ name: 'runtime', ok: true, detail: 'embedded Bun 1.4.2' })
     expect(runner.calls.map((call) => call.command)).toEqual(['aws', 'session-manager-plugin', 'aws'])
   })
 
   test('reports a mismatched local Bun runtime', async () => {
     const runner = new FakeRunner([response('', '', 127), response('', '', 127)])
-    const cli = harness(runner, {}, { ...LOCAL_RUNTIME, bunVersion: '1.4.2' })
+    const cli = harness(runner, {}, { ...LOCAL_RUNTIME, bunVersion: '1.4.1' })
 
     expect(await cli.run(['doctor', '--json'])).toBe(1)
     expect(JSON.parse(cli.output().stdout).checks).toContainEqual({
       name: 'bun',
       ok: false,
-      detail: 'running Bun 1.4.2; expected 1.4.1'
+      detail: 'running Bun 1.4.1; expected 1.4.2'
     })
   })
 

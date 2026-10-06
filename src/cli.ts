@@ -112,11 +112,11 @@ async function doctor(invocation: Invocation, dependencies: CliDependencies): Pr
   if (dependencies.runtime.installation === 'local') {
     checks.push({
       name: 'bun',
-      ok: dependencies.runtime.bunVersion === '1.4.1',
+      ok: dependencies.runtime.bunVersion === '1.4.2',
       detail:
-        dependencies.runtime.bunVersion === '1.4.1'
+        dependencies.runtime.bunVersion === '1.4.2'
           ? dependencies.runtime.bunVersion
-          : `running Bun ${dependencies.runtime.bunVersion}; expected 1.4.1`
+          : `running Bun ${dependencies.runtime.bunVersion}; expected 1.4.2`
     })
   } else {
     checks.push({
