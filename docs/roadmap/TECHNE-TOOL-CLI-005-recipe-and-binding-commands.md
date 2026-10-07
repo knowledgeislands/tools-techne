@@ -6,13 +6,12 @@ kind: deliver
 purpose: capability
 project: agent-host
 transferred_from: knowledgeislands/ki-arcadia-principal:KI-ARCADIA-GOV-025
-horizon: now
-status: awaiting-review
+status: done
 blocks: []
 blocked_by: []
 baseline_ref: 7270787f19eabf3751b940d64932e0625bb92f05
 created_at: 2026-10-07T13:00:20Z
-updated_at: 2026-10-07T13:40:00Z
+updated_at: 2026-10-07T14:43:15Z
 ---
 
 # Recipe and Binding Commands
@@ -195,6 +194,14 @@ The literal readings taken where GOV-025 was silent are listed under Discussion 
 ### Mini recap
 
 Hosts are bindings to harness recipes, selected explicitly for every change, and AWS sits behind a provider adapter with prefixed options and no built-in defaults.
+
+## Done
+
+Accepted 2026-10-07 by Kris Brown on the review packet above.
+
+### Acceptance - 2026-10-07
+
+Kris approved acceptance on 2026-10-07 at about 16:35 CEST, after applying chezmoi `DOTFILES-UE-070` and running the live read-only checks successfully: `techne host list`, `techne host status`, `techne host status --host agent-host --json` and `techne controller status`.
 
 ## Discussion
 
