@@ -4,12 +4,12 @@ area: CLI
 title: Add host command group
 theme: cli
 horizon: now
-status: in-progress
+status: awaiting-review
 blocks: []
 blocked_by: []
 baseline_ref: 420e671e6a99375a8898d489f4fbf31db2a0d199
 created_at: 2026-10-07T06:35:19Z
-updated_at: 2026-10-07T09:19:06Z
+updated_at: 2026-10-07T09:27:00Z
 ---
 
 # Add host command group
@@ -62,15 +62,15 @@ Live use is limited by the Techne Programme Hold exemption (KI-ARCADIA-GOV-023) 
 - [x] Add the `host status`, `host start`, `host stop`, `host teardown` and `host connect [path]` handlers to `src/cli.ts`, with an injected line reader for the teardown confirmation, and extend help topics and the Bash and Zsh completions.
 - [x] Cover every guard and outcome in `src/tests/cli.test.ts` and `src/tests/core.test.ts` with injected subprocess responses, keeping 100% coverage, and add the new provider modules to the dependency-boundary rule.
 - [x] Document the group in `README.md`, a new user guide `docs/guides/user/agent-host.md`, the guide index, `man/techne.1` and `CHANGELOG.md`.
-- [ ] Run the definition-of-done gates and a read-only `techne host status` against the operator profile.
-- [ ] Later step, after [TECHNE-TOOLS-OPS-011](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/roadmap/TECHNE-TOOLS-OPS-011-manage-the-agent-host-footprint.md) is accepted: add `techne host setup` wrapping the harness's `setup.sh`, and a `workspace` object in `host status` wrapping its `status.sh` report, without copying either into this repository. Planned on 2026-10-07 as the sub-steps below.
-  - [ ] Add the harness checkout setting `--harness-dir` and `TECHNE_HARNESS_DIR`, defaulting to `~/workspaces/kit/knowledgeislands/ki-techne-harness`, and a `--pull` flag accepted only by `host setup`.
-  - [ ] Add `src/harness.ts`: locate `operations/aws/agent-host/<script>` in the checkout, failing clearly when the checkout or script is missing, and run `setup.sh` interactively and `status.sh` captured, each through `bash` and the injected runner.
-  - [ ] Add `techne host setup [--pull] [--dry-run]`: locate the script, check Tailscale reaches the host as `connect` does, then run it, or with `--dry-run` print the command it would run.
-  - [ ] Extend `host status` with the additive `workspace` section: run `status.sh` only when the instance is running, carry its report text unchanged, report `skipped` otherwise, and exit 1 with the instance report still printed when the workspace report fails.
-  - [ ] Close the helper comparison: add the missing test that refuses a role whose name only begins with the operator role, and record the comparison in this record.
-  - [ ] Extend help, the Bash and Zsh completions, the dependency-boundary rule, the tests (100% coverage), `README.md`, the user guide, `man/techne.1` and `CHANGELOG.md`.
-  - [ ] Run the definition-of-done gates and `ki repo audit --repo .`; leave the live checks to Kris.
+- [x] Run the definition-of-done gates. The live read-only `techne host status` is left to Kris at review (instruction of 2026-10-07: no remote call during delivery); see Review.
+- [x] Later step, after [TECHNE-TOOLS-OPS-011](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/roadmap/TECHNE-TOOLS-OPS-011-manage-the-agent-host-footprint.md) is accepted: add `techne host setup` wrapping the harness's `setup.sh`, and a `workspace` object in `host status` wrapping its `status.sh` report, without copying either into this repository. Planned on 2026-10-07 as the steps below.
+- [x] Add the harness checkout setting `--harness-dir` and `TECHNE_HARNESS_DIR`, defaulting to `~/workspaces/kit/knowledgeislands/ki-techne-harness`, and a `--pull` flag accepted only by `host setup`.
+- [x] Add `src/harness.ts`: locate `operations/aws/agent-host/<script>` in the checkout, failing clearly when the checkout or script is missing, and run `setup.sh` interactively and `status.sh` captured, each through `bash` and the injected runner.
+- [x] Add `techne host setup [--pull] [--dry-run]`: locate the script, check Tailscale reaches the host as `connect` does, then run it, or with `--dry-run` print the command it would run.
+- [x] Extend `host status` with the additive `workspace` section: run `status.sh` only when the instance is running, carry its report text unchanged, report `skipped` otherwise, and exit 1 with the instance report still printed when the workspace report fails.
+- [x] Close the helper comparison: add the missing test that refuses a role whose name only begins with the operator role, and record the comparison in this record.
+- [x] Extend help, the Bash and Zsh completions, the dependency-boundary rule, the tests (100% coverage), `README.md`, the user guide, `man/techne.1` and `CHANGELOG.md`.
+- [x] Run the definition-of-done gates and `ki repo audit --repo .`; leave the live checks to Kris.
 
 ## Files touched
 
@@ -110,6 +110,47 @@ A new user guide, `docs/guides/user/agent-host.md`, covers the host commands and
 
 This record. Retiring the chezmoi helper stays with DOTFILES-UE-068 in the chezmoi repository.
 
+## Review
+
+### Delivered
+
+The approved boundary in two slices. First slice (baseline `420e671e6a99375a8898d489f4fbf31db2a0d199`, commits `0a49646`, `6d1616c`, `d215a78`): `host status`, `start`, `stop`, `teardown` and `connect` with the helper's guards. Later step (plan `9336562`, delivery `6ce8f41` and `76d8f69`, and the commit that moves this record to `awaiting-review`): `host setup [--pull] [--dry-run]` and the `workspace` section of `host status`, both running the harness scripts in place from a local `ki-techne-harness` checkout. Excluded as planned: `--host <binding>`, several bindings and recipes (KI-ARCADIA-GOV-025), any change to `ki-techne-harness` or chezmoi, and every live run.
+
+### Change Summary
+
+- `src/harness.ts` (new): `HarnessCheckout` locates `operations/aws/agent-host/setup.sh` or `status.sh` in the checkout and refuses an unset path, a missing checkout or a missing script with a message naming `--harness-dir` and `TECHNE_HARNESS_DIR`; runs `setup.sh` through `bash` interactively, so its output streams, and `status.sh` captured, returning `reported` with the text unchanged or `failed` with the script's message.
+- `src/config.ts`: `harnessDir` from `--harness-dir`, then `TECHNE_HARNESS_DIR`, then `$HOME/workspaces/kit/knowledgeislands/ki-techne-harness`; a `--pull` flag.
+- `src/cli.ts`: `host setup` checks the checkout, then Tailscale reachability as `connect` does, then runs the script, passing `--pull` through; `--dry-run` prints the exact command instead. A non-zero script exit fails with its status. `host status` adds `workspace: {state, report, detail}` under the unchanged `techne/host-status/v1` schema, runs `status.sh` only for a running instance, reports `skipped` otherwise, and exits 1 after the instance report when the workspace report fails. `--pull` is refused outside `host setup`; `--dry-run` now also covers `host setup`; help and usage list both.
+- `src/completion.ts`: `setup`, `--pull` and `--harness-dir` in Bash and Zsh completion.
+- `.dependency-cruiser.ts`: `harness.ts` joins the provider-to-CLI boundary rule.
+- `src/tests/cli.test.ts`: setup with and without `--pull`, dry run, failing script, unreachable host and the three checkout refusals, none of which runs anything; status reported in text and JSON, skipped for stopped and absent hosts, failed on a script error and on a missing checkout; the `--pull` refusal; a Bash completion case; and the helper's missing test, a role whose name only begins with the operator role. `src/tests/auth.test.ts` and `core.test.ts` gain the new configuration field.
+- `README.md`, `docs/guides/user/agent-host.md`, `docs/guides/user/README.md`, `man/techne.1`, `CHANGELOG.md`: the new command, option, environment variable, workspace section and recovery steps.
+- This record: the comparison with the chezmoi helper is under "Helper comparison - 2026-10-07" in the Discussion; it found no gap beyond the one missing test.
+- Deviation: the planning commit `9336562` nested the later step's sub-steps, which the roadmap audit rejects (`ITEM-3`); they are flat in this commit.
+
+### Verification
+
+- `bun install --frozen-lockfile` (root and `tooling/boundaries`), `bun run test` (80 passed), `bun run test:coverage` (100% statements, branches, functions and lines), `bun run self:typecheck`, `bun run build`, `bun run self:release:test`, `bun run ki:tools:lint-man`, `bunx biome check .`, `bunx rumdl check .` and `git diff --check`: all pass.
+- `ki repo audit --repo .`: passes (19 skills) with this record in place; before it, the only failure was `ITEM-3` on this record's nested steps, fixed here.
+- Local smoke, with no remote call: `techne help host setup`, a missing `--harness-dir` refused before any subprocess, and `--pull` refused on `host status`.
+- Not run, left to Kris: `techne auth login`, then `techne host status` and `techne host status --json` (instance and workspace report), `techne host setup --dry-run` and `techne host setup`. Delivery made no SSH, AWS, Tailscale or other remote call, as instructed, so the first slice's live read-only status check is also still open.
+
+### Outstanding concerns
+
+- **No live evidence.** The wrapper is proven only against injected subprocess responses. The first live `techne host setup` and `techne host status` are Kris's.
+- **Status now reaches the host.** For a running host, `host status` runs SSH through the harness `status.sh`, which also queries GitHub for the token's expiry on the host. It stays read-only, but it is slower than an AWS describe call and fails, with exit 1, when SSH does not work.
+- **The checkout's version is what runs.** The CLI runs whatever the local harness checkout holds; a stale checkout runs stale scripts. The guide says to keep it current.
+- **Dry run is the CLI's.** `setup.sh` has no dry-run, so `--dry-run` previews only the command, not the convergence.
+- **Binding grammar.** `--host-profile` will need reconciling with `--host <binding>` when KI-ARCADIA-GOV-025 is planned (see Discussion).
+
+### Post-change review
+
+The goal is met for the single host: with the chezmoi helper's behaviour already covered, `techne host` now also sets up the workspace and reports it, so the helper can be retired by DOTFILES-UE-068 once Kris has checked the live commands. Scope held: the harness scripts run in place, nothing was copied, no binding was added, and no other repository changed. Regression risk is low: the existing commands are unchanged except that `host status` gains a field and can now exit 1 for a running host whose workspace report fails, which is documented. The review is the implementing agent's own check against the plan and the gates, not an independent review.
+
+### Mini recap
+
+CLI-004 is complete pending Kris's live checks: `techne host` covers status, setup, start, stop, connect and teardown, wrapping the harness scripts from a local checkout. Proposed learning route: none beyond this record; the helper retirement is DOTFILES-UE-068's, and the binding reconciliation is GOV-025's.
+
 ## Discussion
 
 ### Sequencing
@@ -147,6 +188,24 @@ The three open questions recorded at intake are resolved with these defaults, wh
 - **Dry run.** `setup.sh` has no dry-run of its own, so `techne host setup --dry-run` performs the CLI's checks and prints the exact command; it does not run the script. A preview of the convergence itself would need a harness change and is out of this boundary.
 - **Reachability first.** `host setup` checks Tailscale and pings the host before running the script, as `connect` does, so a stopped host fails with the same clear message instead of an SSH timeout. Like `connect`, it makes no AWS call.
 - **Workspace in status.** `host status` runs `status.sh` only for a running instance. JSON gains `workspace: {state, report, detail}`, with `state` one of `reported`, `skipped` or `failed`, under the unchanged `techne/host-status/v1` schema, because the field is additive. `report` is the harness text unchanged. A failed workspace report keeps the instance report and exits 1, so scripts notice it.
+
+### Helper comparison - 2026-10-07
+
+Every behaviour and guard of the chezmoi `techne-agent-host` helper and its test has a `techne host` equivalent:
+
+| Helper | `techne` |
+| --- | --- |
+| tag selector `ki-agent-host-id=agent-host`, non-terminated states, `eu-west-1` | same filter and region in every AWS host command |
+| refuses none or several tagged instances | same, with `status` reporting `absent` rather than failing |
+| operator-role and account guard, including a role that only begins with the name | same; the prefix case is now tested |
+| `stop` acts only on a running host, `--dry-run` | same |
+| `teardown` asks for the typed instance ID, `--dry-run` skips the prompt | same, and refuses outright without an interactive terminal |
+| teardown lists the remaining resources | same list |
+| `connect [path]`: Tailscale up, host answers, Zed `ssh://` remote | same |
+| `connect --aws` starts a stopped host first | `techne host start`, then `techne host connect`, by the decision recorded above |
+| Granted `assume` into the shell, and its `assume --unset` hint | not needed: the AWS CLI uses the `knowledge-islands-techne-agent-host` profile per command, so no shell session is left behind |
+
+The helper offered neither setup nor workspace status; both are new here. Its test's last case checks that chezmoi's SSH and Zed entries log in as `techne`. That is chezmoi-owned personal configuration, and `host connect` and `host setup` depend on it: retiring the helper must keep the `ki-techne-agent-host` SSH entry and the Zed connection.
 
 ### Binding grammar
 
