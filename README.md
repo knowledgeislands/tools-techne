@@ -15,17 +15,21 @@ techne doctor
 techne auth login
 techne controller status
 techne controller bootstrap
-techne host status
-techne host setup [--pull]
-techne host start
-techne host stop
-techne host connect [path]
-techne host teardown
+techne recipe list
+techne recipe show [recipe]
+techne host list
+techne host add <name> --recipe <recipe> [--provider <provider>]
+techne host status [--host <name> | --all]
+techne host setup --host <name> [--pull]
+techne host start --host <name>
+techne host stop --host <name>
+techne host connect [--host <name>] [path]
+techne host teardown --host <name>
 techne completion bash
 techne completion zsh
 ```
 
-Use `techne help [command]`, `techne --help` or `--help` after any command or command group, such as `techne host --help`, for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` reports offline, share-safe tool/version, installation mode, executing host platform/architecture, runtime, and configuration presence; `diag --full` deliberately reveals local paths and identifiers. `doctor` adds its read-only scope, actionable checks, healthy/unhealthy verdict, and pass/warn/fail/skipped counts; it may contact AWS for identity, but does not check package freshness. Authentication or bootstrap is explicit and interactive. The `host` commands act only on the one agent host tagged `ki-agent-host-id=agent-host`, under the agent-host operator role; `--dry-run` previews a change and teardown asks you to type the instance ID. `host setup` and the workspace section of `host status` run the agent-host scripts from a local Techne Harness checkout, selected with `--harness-dir` or `TECHNE_HARNESS_DIR`, rather than copying them.
+Use `techne help [command]`, `techne --help` or `--help` after any command or command group, such as `techne host --help`, for command and option reference. The [user guides](docs/guides/user/README.md) connect installation, authentication, diagnostics, and controller commands into safe operator workflows. `diag` reports offline, share-safe tool/version, installation mode, executing host platform/architecture, runtime, and configuration presence; `diag --full` deliberately reveals local paths and identifiers. `doctor` adds its read-only scope, actionable checks, healthy/unhealthy verdict, and pass/warn/fail/skipped counts; it may contact AWS for identity, but does not check package freshness. Authentication or bootstrap is explicit and interactive. Hosts and the controller are configured, not built in: each host is a binding file, `~/.config/techne/hosts/<name>.toml`, naming a recipe from a local Techne Harness checkout (`--harness-dir` or `TECHNE_HARNESS_DIR`) and exactly one provider table, and the controller is the `[controller.aws]` table in `~/.config/techne/config.toml`. Read-only host commands select a host by `--host`, `TECHNE_HOST`, `default_host` or the only binding; `host setup`, `start`, `stop` and `teardown` always require `--host`. Provider options such as `--aws-profile` override the binding or controller values. AWS host commands act only on the one instance matching the recipe's selectors, under its operator role; `--dry-run` previews a change and teardown asks you to type the instance ID. Recipe scripts run from the harness checkout rather than being copied.
 
 `techne completion bash` and `techne completion zsh` print shell completion definitions without changing shell configuration.
 
@@ -47,7 +51,7 @@ Use the repository-pinned toolchain and the canonical commands in the [definitio
 
 ## Repository map
 
-- `src/` — CLI grammar, configuration, diagnostics and AWS adapter.
+- `src/` — CLI grammar, bindings, recipes, diagnostics and the provider adapters under `src/providers/`.
 - `bin/techne` — local source launcher.
 - `man/techne.1` — physical command manual.
 - `release/` — platform archive builder and installer smoke test.

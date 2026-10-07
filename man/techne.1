@@ -19,14 +19,17 @@ is the operator command-line interface for the Techne controller
 execution fabric.
 It keeps provider credentials out of command arguments and enforces the
 configured AWS account boundary before controller and agent host operations.
+Hosts are named by binding files and built from harness recipes; the
+controller is the provider table in
+.BR config.toml .
+There are no built-in targets.
 .SH COMMANDS
 \&
 .TP
 .B diag
 Report share-safe tool/version, local/release/unknown installation mode,
 executing host platform and architecture, runtime/version, and effective
-configuration presence without network access. Configuration uses defaults,
-environment variables, and options rather than a file.
+configuration presence without network access.
 Local identifiers are redacted unless
 .B --full
 is supplied; review full output before sharing it.
@@ -39,8 +42,9 @@ Show general help, or help for a command or command group such as
 .BR host .
 .TP
 .B doctor
-Check the local runtime, AWS CLI, Session Manager plugin and expected
-AWS identity.
+Check the local runtime and the configured controller target, then its
+provider's tools and identity; with no controller table the controller checks
+are skipped.
 Show the same diagnostic context, read-only scope, healthy/unhealthy verdict,
 and pass/warn/fail/skipped counts. Identity may contact AWS but never changes
 provider state; unavailable prerequisite checks report actionable failures and
@@ -65,43 +69,81 @@ Open a private interactive Session Manager bootstrap session on the
 controller.
 JSON output is not supported for this interactive command.
 .TP
-.B host status
-Report the one non-terminated agent host instance tagged
-.BR ki-agent-host-id=agent-host ,
-its state and region, without changing it.
-When the instance is running, also run the harness
-.B operations/aws/agent-host/status.sh
-from the harness checkout and print its workspace report unchanged;
+.B recipe list
+List the recipes in the harness checkout and the providers each supports,
+marking the selected host's recipe.
+.TP
+.B recipe show [recipe]
+Show a recipe's parameters and providers; without an argument, the selected
+host's recipe.
+.TP
+.B host list
+List the host bindings with their recipe and provider, marking the selected
+host and how it was selected.
+.TP
+.B host add \fIname\fP --recipe \fIrecipe\fP [--provider \fIprovider\fP]
+Write
+.BI hosts/ name .toml
+with one empty provider table for the recipe.
+.B --provider
+is required when the recipe supports more than one provider.
+Refuses to overwrite and provisions nothing.
+.TP
+.B host status [--all]
+Report the selected host's instance and state through its provider, without
+changing it. When the instance is running, also run the recipe's status
+script from the harness checkout and print its workspace report unchanged;
 JSON output carries it in a
 .B workspace
 object.
-A failed workspace report exits 1 after the instance report.
+.B --all
+reports every binding and cannot be combined with
+.B --host
+or provider options.
+A failed workspace report or binding exits 1 after the report.
 .TP
-.B host setup [--pull]
-Check that Tailscale reaches the agent host, then run the harness
-.B operations/aws/agent-host/setup.sh
+.B host setup --host \fIname\fP [--pull]
+Check that Tailscale reaches the host, then run the recipe's setup script
 from the harness checkout to converge the host workspace over SSH.
 .B --pull
 fast-forwards clean checkouts on the host.
 .TP
-.B host start
-Start a stopped agent host and wait until it runs.
+.B host start --host \fIname\fP
+Start a stopped host and wait until it runs.
 .TP
-.B host stop
-Stop a running agent host.
+.B host stop --host \fIname\fP
+Stop a running host.
 .TP
-.B host teardown
-Terminate the agent host after the instance identifier is typed at an
-interactive prompt. This cannot be undone.
+.B host teardown --host \fIname\fP
+Terminate the host after the instance identifier is typed at an
+interactive prompt, then list the recipe footprint still to remove.
+This cannot be undone.
 .TP
 .B host connect [path]
-Check that Tailscale reaches the agent host, then open
+Check that Tailscale reaches the selected host, then open
 .I path
 (default home) in Zed over SSH. Makes no AWS call.
 .PP
-Host commands use the agent-host profile, refuse credentials that are not the
-agent-host operator role in the expected account, and refuse unless exactly one
-tagged instance exists.
+Host commands act on one host binding, selected by
+.BR --host ,
+then
+.BR TECHNE_HOST ,
+then
+.B default_host
+in
+.BR config.toml ,
+then the only binding. A name that is not a binding is an error at every step.
+.BR setup ,
+.BR start ,
+.B stop
+and
+.B teardown
+change a host and require
+.B --host
+even when another step would select one.
+AWS host commands refuse credentials that are not the recipe's operator role
+in the expected account, and refuse unless exactly one instance matches the
+recipe's selectors.
 .BR setup ,
 .BR start ,
 .BR stop ,
@@ -136,28 +178,31 @@ Keep persistent activation in shell configuration or a configuration manager.
 .SH GLOBAL OPTIONS
 \&
 .TP
-.BI "--profile " name
-Select the AWS profile.
-.TP
-.BI "--region " region
-Select the AWS region.
-.TP
-.BI "--account " id
-Set the expected AWS account identifier.
-.TP
-.BI "--controller-stack " name
-Select the controller CloudFormation stack.
-.TP
-.BI "--host-profile " name
-Select the AWS profile for the agent host operator role.
+.BI "--host " name
+Select the host binding. Required by
+.BR "host setup" ,
+.BR start ,
+.B stop
+and
+.BR teardown .
 .TP
 .BI "--harness-dir " path
-Select the local ki-techne-harness checkout whose agent-host scripts
-.B host setup
-and
-.B host status
-run. Defaults to
+Select the local ki-techne-harness checkout holding the recipes and host
+scripts. Defaults to
 .BR $HOME/workspaces/kit/knowledgeislands/ki-techne-harness .
+.TP
+.B --all
+Report every host binding, for
+.BR "host status" .
+.TP
+.BI "--recipe " recipe
+Recipe for
+.BR "host add" .
+.TP
+.BI "--provider " provider
+Provider for
+.BR "host add" ,
+when the recipe supports several.
 .TP
 .B --dry-run
 Print host changes without making them.
@@ -178,26 +223,67 @@ without a command is a usage error.
 .TP
 .BR -V , " --version"
 Show the version.
+.SH PROVIDER OPTIONS
+\&
+.PP
+Provider options apply only to a command whose target, the selected host or
+the controller, uses that provider; anything else is a usage error.
+Each overrides the binding or controller table value.
+.TP
+.BI "--aws-profile " name
+AWS profile for the target; for a host, the admin profile its scripts use.
+Falls back to the table value, then
+.BR AWS_PROFILE .
+.TP
+.BI "--aws-region " region
+AWS region. Falls back to the table value, then
+.BR AWS_REGION .
+.TP
+.BI "--aws-account " id
+Expected AWS account identifier.
+.TP
+.BI "--aws-controller-stack " name
+Controller CloudFormation stack; controller only.
+.TP
+.BI "--aws-operator-profile " name
+AWS profile for the host operator role; host only.
+.SH FILES
+\&
+.TP
+.B ${XDG_CONFIG_HOME:-~/.config}/techne/config.toml
+Optional
+.B default_host
+and at most one
+.BI [controller. provider ]
+table, such as
+.BR [controller.aws] .
+.TP
+.BI ${XDG_CONFIG_HOME:-~/.config}/techne/hosts/ name .toml
+One host binding: schema
+.BR techne/host-binding/v1 ,
+.BR name ,
+.BR recipe ,
+optional recipe parameters and exactly one provider table, such as
+.BR [aws] .
 .SH ENVIRONMENT
 \&
 .TP
+.B TECHNE_HOST
+Host binding to select when
+.B --host
+is absent.
+.TP
 .B AWS_PROFILE
-Default AWS profile.
+AWS profile when neither option nor table sets one.
 .TP
 .B AWS_REGION
-Default AWS region.
-.TP
-.B EXPECTED_AWS_ACCOUNT
-AWS account safety boundary.
-.TP
-.B CONTROLLER_STACK_NAME
-Default controller stack name.
-.TP
-.B TECHNE_HOST_PROFILE
-Default agent host profile.
+AWS region when neither option nor table sets one.
 .TP
 .B TECHNE_HARNESS_DIR
 Default ki-techne-harness checkout.
+.TP
+.B XDG_CONFIG_HOME
+Base of the configuration directory.
 .SH EXIT STATUS
 \&
 .PP

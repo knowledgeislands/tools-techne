@@ -2,6 +2,21 @@
 
 All notable changes to `techne` are recorded here.
 
+## Unreleased
+
+### Breaking
+
+- Hosts and the controller are now configured rather than built in. Each host is a binding, `~/.config/techne/hosts/<name>.toml`, with a recipe from the harness checkout and exactly one provider table; the controller is the `[controller.aws]` table in `~/.config/techne/config.toml`. Commands refuse until the target they need exists.
+- `host setup`, `start`, `stop` and `teardown` require `--host`.
+- `--profile`, `--region`, `--account`, `--controller-stack` and `--host-profile` are removed in favour of `--aws-profile`, `--aws-region`, `--aws-account`, `--aws-controller-stack` and `--aws-operator-profile`, which apply only to a target using the AWS provider.
+- `EXPECTED_AWS_ACCOUNT`, `CONTROLLER_STACK_NAME` and `TECHNE_HOST_PROFILE` are no longer read. `host status --json` reports the schema `techne/host-status/v2`.
+
+### Added
+
+- `techne recipe list|show`, `techne host list|add` and `techne host status --all`.
+- Host selection by `--host`, `TECHNE_HOST`, `default_host` or the only binding.
+- Recipe-driven AWS selectors, script environment and teardown footprint, through a provider adapter contract.
+
 ## Pre-1.0 baseline
 
 This is the consolidated 0.x command and capability baseline. Tags and GitHub releases retain each exact preview snapshot.

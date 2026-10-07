@@ -12,9 +12,9 @@ Run:
 techne diag
 ```
 
-`diag` performs no network operation. Its default text and `--json` output report share-safe tool/version, proven local/release/unknown installation mode, executing host platform and architecture, runtime/version, and effective configuration presence. Techne uses defaults, environment variables, and explicit options rather than a configuration file; presence does not prove provider access. Executable paths, working directory, AWS profile and region, expected account, and controller stack remain redacted. Use `techne diag --full` when those local details are needed; review before sharing that output.
+`diag` performs no network operation. Its default text and `--json` output report share-safe tool/version, proven local/release/unknown installation mode, executing host platform and architecture, runtime/version, and effective configuration presence. Configuration presence is the number of host bindings and the controller provider, read from `~/.config/techne`; presence does not prove provider access. Executable paths, the configuration and harness directories, and the controller's profile, region, account and stack remain redacted. Use `techne diag --full` when those local details are needed; review before sharing that output.
 
-The controller stack name is an effective configuration value, not a stack discovered or renamed by the CLI. Override it with `CONTROLLER_STACK_NAME` or `--controller-stack` when operating a different deployed stack.
+The controller target is the one `[controller.<provider>]` table in `config.toml`; there is no built-in target, and commands that need it refuse until it exists. Its stack name is a configured value, not a stack discovered or renamed by the CLI. Override it for one command with `--aws-controller-stack` when operating a different deployed stack; [Authenticate techne with AWS](authenticating.md) lists every controller field and option.
 
 Installation is `local` only when the physically resolved entrypoint belongs to an identified Techne development checkout, with its source/package layout and a Git directory or valid worktree pointer. Linked checkout entrypoints remain local. Arbitrary copied source or unavailable identity reports `unknown`; the embedded compiled runtime reports `release`. A source URL or filename alone is not proof.
 
@@ -26,7 +26,7 @@ Run:
 techne doctor
 ```
 
-`doctor` checks the local runtime, AWS CLI, Session Manager plugin, and expected AWS identity. It may contact AWS for the identity check. A recognised expired session directs you to `techne auth login`; `doctor` never starts a browser or changes provider sessions itself.
+`doctor` checks the local runtime and the controller target, then the AWS CLI, Session Manager plugin, and expected AWS identity. With no controller table, the controller checks are skipped. It may contact AWS for the identity check. A recognised expired session directs you to `techne auth login`; `doctor` never starts a browser or changes provider sessions itself.
 
 The report begins with the same context as `diag`, states the read-only scope and AWS contact, then prints actionable checks, a healthy/unhealthy verdict, and pass/warn/fail/skipped counts. Checks begin with `ok`, `warn`, `fail`, or `skipped`; if AWS CLI is unavailable, identity is explicitly skipped rather than silently omitted. A healthy verdict does not mean package or release updates were checked. Identity results omit numeric accounts and raw provider errors; use `techne diag --full` privately to review account configuration, or `techne auth login` to restore a session. Use `techne doctor --json` when another local tool needs structured results; its existing `ok` and `checks` fields are retained alongside the common context, scope, verdict, and counts.
 
@@ -53,7 +53,7 @@ Techne validates the expected account, requires the configured stack and its con
 ## Recovery
 
 - **Authentication expired:** run `techne auth login`, then repeat the operation.
-- **Unexpected AWS account:** inspect `techne diag`, then correct the profile or expected-account override. Do not bypass the account check.
+- **Unexpected AWS account:** inspect `techne diag`, then correct the profile or account in the controller table. Do not bypass the account check.
 - **Session Manager plugin unavailable:** install the AWS Session Manager plugin before bootstrap. `controller status` can still run without it.
 - **Controller stack absent:** verify the effective region and stack name with `techne diag`. If both are correct, deployment belongs to Techne Harness rather than this CLI.
 - **Controller instance output missing:** the deployed stack does not expose the instance expected by the CLI. Route the runtime or infrastructure issue to Techne Harness.

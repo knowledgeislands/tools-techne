@@ -67,17 +67,17 @@ const USAGE = [
 ]
 
 const GLOBAL_OPTIONS = `Global options:
-  --host <name>               host binding; setup, start, stop and teardown require it
-  --harness-dir <path>        local ki-techne-harness checkout holding recipes and host scripts
-  --json                      machine-readable output where supported
-  --full                      include local paths and identifiers in diag
-  --dry-run                   print host changes without making them
-  --pull                      fast-forward clean checkouts on the host during host setup
-  --all                       report every host binding, for host status
-  --recipe <recipe>           recipe for host add
-  --provider <provider>       provider for host add, when the recipe supports several
-  -h, --help                  show help
-  -V, --version               show version`
+  --host <name>                  host binding; setup, start, stop and teardown require it
+  --harness-dir <path>           local ki-techne-harness checkout holding recipes and host scripts
+  --json                         machine-readable output where supported
+  --full                         include local paths and identifiers in diag
+  --dry-run                      print host changes without making them
+  --pull                         fast-forward clean checkouts on the host during host setup
+  --all                          report every host binding, for host status
+  --recipe <recipe>              recipe for host add
+  --provider <provider>          provider for host add, when the recipe supports several
+  -h, --help                     show help
+  -V, --version                  show version`
 
 const TARGETS: Readonly<Record<string, TargetKind>> = {
   diag: 'controller',
@@ -107,7 +107,7 @@ const GROUP_COMMANDS: Readonly<Record<string, string>> = {
 function providerOptionLines(provider: Provider): string {
   const lines = provider.options.map((option) => {
     const flag = `${optionFlag(provider.name, option.name)} ${option.value}`
-    return `  ${flag.padEnd(28)}${option.description} (${option.targets.join(', ')})`
+    return `  ${flag.padEnd(31)}${option.description} (${option.targets.join(', ')})`
   })
   return `${provider.name.toUpperCase()} provider options:\n${lines.join('\n')}`
 }
