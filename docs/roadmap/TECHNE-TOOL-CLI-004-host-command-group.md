@@ -4,12 +4,12 @@ area: CLI
 title: Add host command group
 theme: cli
 horizon: now
-status: ready
+status: in-progress
 blocks: []
 blocked_by: []
-baseline_ref: null
+baseline_ref: 420e671e6a99375a8898d489f4fbf31db2a0d199
 created_at: 2026-10-07T06:35:19Z
-updated_at: 2026-10-07T07:50:00Z
+updated_at: 2026-10-07T07:50:01Z
 ---
 
 # Add host command group
@@ -54,12 +54,12 @@ Live use is limited by the Techne Programme Hold exemption (KI-ARCADIA-GOV-023) 
 
 ## Steps
 
-- [ ] Add the host configuration: `--host-profile` and `TECHNE_HOST_PROFILE`, defaulting to `knowledge-islands-techne-agent-host`, and a `--dry-run` flag accepted only by `host start`, `host stop`, `host teardown` and `host connect`.
-- [ ] Return the caller ARN from the AWS identity check, and add `src/agent-host.ts`: the operator-role guard, the tag-selected single-instance lookup with its refusals, and typed start, wait, stop and terminate operations.
-- [ ] Add `src/tailscale.ts` for the read-only `tailscale status` and `tailscale ping` reachability checks.
-- [ ] Add the `host status`, `host start`, `host stop`, `host teardown` and `host connect [path]` handlers to `src/cli.ts`, with an injected line reader for the teardown confirmation, and extend help topics and the Bash and Zsh completions.
-- [ ] Cover every guard and outcome in `src/tests/cli.test.ts` and `src/tests/core.test.ts` with injected subprocess responses, keeping 100% coverage, and add the new provider modules to the dependency-boundary rule.
-- [ ] Document the group in `README.md`, a new user guide `docs/guides/user/agent-host.md`, the guide index, `man/techne.1` and `CHANGELOG.md`.
+- [x] Add the host configuration: `--host-profile` and `TECHNE_HOST_PROFILE`, defaulting to `knowledge-islands-techne-agent-host`, and a `--dry-run` flag accepted only by `host start`, `host stop`, `host teardown` and `host connect`.
+- [x] Return the caller ARN from the AWS identity check, and add `src/agent-host.ts`: the operator-role guard, the tag-selected single-instance lookup with its refusals, and typed start, wait, stop and terminate operations.
+- [x] Add `src/tailscale.ts` for the read-only `tailscale status` and `tailscale ping` reachability checks.
+- [x] Add the `host status`, `host start`, `host stop`, `host teardown` and `host connect [path]` handlers to `src/cli.ts`, with an injected line reader for the teardown confirmation, and extend help topics and the Bash and Zsh completions.
+- [x] Cover every guard and outcome in `src/tests/cli.test.ts` and `src/tests/core.test.ts` with injected subprocess responses, keeping 100% coverage, and add the new provider modules to the dependency-boundary rule.
+- [x] Document the group in `README.md`, a new user guide `docs/guides/user/agent-host.md`, the guide index, `man/techne.1` and `CHANGELOG.md`.
 - [ ] Run the definition-of-done gates and a read-only `techne host status` against the operator profile.
 - [ ] Later step, after [TECHNE-TOOLS-OPS-011](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/roadmap/TECHNE-TOOLS-OPS-011-manage-the-agent-host-footprint.md) is accepted: add `techne host setup` wrapping the harness's `setup.sh`, and a `workspace` object in `host status` wrapping its `status.sh` report, without copying either into this repository.
 
@@ -112,6 +112,15 @@ Once `techne host` exists, `techne-agent-host` in chezmoi can shrink to a thin a
 ### Remote-environment authority
 
 Remote action is limited to the single agent host under the Techne Programme Hold's KI-ARCADIA-GOV-020 exemption. A separate Arcadia record is widening that exemption to cover setting up and operating the agent host properly; KI-ARCADIA-GOV-021 is related governance context. Adopting or delivering this record does not by itself authorise any remote operation, and live verification must stay within whatever exemption is current at that time.
+
+### Delivery progress - 2026-10-07
+
+The first slice landed in `0a49646` (commands, guards and tests) and `6d1616c` (README, user guide, manual and changelog). Every definition-of-done gate passes, including 100% coverage and `ki repo audit --repo .`. Two departures from the plan, both within its boundary:
+
+- `.dependency-cruiser.ts` adds the two new provider modules to the provider-to-CLI boundary rule, and `src/tests/auth.test.ts` gains the new `hostProfile` configuration field.
+- Host commands reject `--json` except `status`, as `controller bootstrap` does; `--dry-run` is rejected outside the four changing host commands.
+
+The live read-only check of `techne host status` did not run: the `knowledge-islands-techne` single sign-on session behind the operator profile had expired, and renewing it needs Kris's interactive `techne auth login`. That verification step stays open with the later step.
 
 ### Decisions - 2026-10-07
 
