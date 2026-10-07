@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "@knowledgeislands/techne",
+      "dependencies": {
+        "smol-toml": "1.9.0",
+      },
       "devDependencies": {
         "@biomejs/biome": "2.5.15",
         "@commitlint/cli": "^21.2.3",

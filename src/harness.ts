@@ -1,13 +1,11 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { failureMessage } from './aws.ts'
 import { TechneError } from './errors.ts'
-import type { CommandRunner } from './process.ts'
+import { type CommandRunner, failureMessage } from './process.ts'
+import type { Recipe, RecipeCatalogue } from './recipes.ts'
 
-const AGENT_HOST_SCRIPTS = 'operations/aws/agent-host'
-export const HARNESS_SETTING = '--harness-dir or TECHNE_HARNESS_DIR'
-
-export type HarnessScript = 'setup.sh' | 'status.sh'
+// The provider-neutral scripts a recipe names under [paths].
+export type HarnessScript = 'setup' | 'status'
 
 export type WorkspaceState = 'reported' | 'skipped' | 'failed'
 
@@ -17,52 +15,51 @@ export interface WorkspaceStatus {
   detail: string | null
 }
 
-// Runs the agent-host scripts in place from a local ki-techne-harness checkout,
-// which stays their only copy (ADR-TECHNE-003).
+// Runs a recipe's scripts in place from a local ki-techne-harness checkout,
+// which stays their only copy (ADR-TECHNE-003). Binding values reach them only
+// through the environment variables the recipe declares.
 export class HarnessCheckout {
   private readonly runner: CommandRunner
-  private readonly directory: string
+  private readonly recipes: RecipeCatalogue
 
-  constructor(runner: CommandRunner, directory: string) {
+  constructor(runner: CommandRunner, recipes: RecipeCatalogue) {
     this.runner = runner
-    this.directory = directory
+    this.recipes = recipes
   }
 
-  script(name: HarnessScript): string {
-    if (this.directory === '') {
-      throw new TechneError(`no ki-techne-harness checkout is configured; set ${HARNESS_SETTING}`)
+  script(recipe: Recipe, name: HarnessScript): string {
+    const relative = recipe.paths[name]
+    if (relative === undefined) {
+      throw new TechneError(`recipe ${recipe.name} declares no ${name} script under [paths]`)
     }
-    if (!existsSync(this.directory)) {
-      throw new TechneError(
-        `ki-techne-harness checkout not found at ${this.directory}; clone it or set ${HARNESS_SETTING}`
-      )
-    }
-    const path = join(this.directory, AGENT_HOST_SCRIPTS, name)
+    const path = join(this.recipes.checkout(), relative)
     if (!existsSync(path)) {
-      throw new TechneError(
-        `${this.directory} has no ${AGENT_HOST_SCRIPTS}/${name}; update the ki-techne-harness checkout`
-      )
+      throw new TechneError(`${this.recipes.harnessDir} has no ${relative}; update the ki-techne-harness checkout`)
     }
     return path
   }
 
-  async setup(script: string, args: readonly string[]): Promise<void> {
-    const result = await this.runner.run('bash', [script, ...args], { mode: 'interactive' })
+  async setup(script: string, args: readonly string[], env: Readonly<Record<string, string>>): Promise<void> {
+    const result = await this.runner.run('bash', [script, ...args], {
+      mode: 'interactive',
+      env,
+      cwd: this.recipes.harnessDir
+    })
     if (result.exitCode !== 0) {
       throw new TechneError(`harness setup failed with exit status ${result.exitCode}`)
     }
   }
 
-  async workspaceStatus(): Promise<WorkspaceStatus> {
+  async workspaceStatus(recipe: Recipe, env: Readonly<Record<string, string>>): Promise<WorkspaceStatus> {
     let script: string
     try {
-      script = this.script('status.sh')
+      script = this.script(recipe, 'status')
     } catch (error) {
       return { state: 'failed', report: null, detail: (error as TechneError).message }
     }
-    const result = await this.runner.run('bash', [script])
+    const result = await this.runner.run('bash', [script], { env, cwd: this.recipes.harnessDir })
     if (result.exitCode !== 0) {
-      return { state: 'failed', report: null, detail: failureMessage('harness status.sh failed', result) }
+      return { state: 'failed', report: null, detail: failureMessage('harness status script failed', result) }
     }
     return { state: 'reported', report: result.stdout, detail: null }
   }

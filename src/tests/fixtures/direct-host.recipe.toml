@@ -1,0 +1,144 @@
+# Vendored from ki-techne-harness b37b16c recipes/direct-host/recipe.toml; tests read it as the harness's own manifest.
+# The direct-host recipe (KI-ARCADIA-GOV-025, TECHNE-TOOLS-OPS-012): an agent
+# host whose agents run on the host itself. A binding names one supported
+# provider by its provider table; every binding value reaches the scripts only
+# through the environment variable declared for it, and each script defaults
+# that variable to the first binding's (agent-host) value.
+#
+# Paths are relative to the harness checkout. A parameter is required, or has
+# a default; a default may be derived from the binding through placeholders:
+# {name} is the binding name, {<field>} a provider-neutral field and
+# {<provider>.<field>} a field of the binding's provider table. Each
+# [providers.<provider>] table names a provider the recipe supports.
+
+schema = "techne/recipe/v1"
+name = "direct-host"
+summary = "Agents run directly on one host reached only over Tailscale SSH"
+runtime = "direct"
+
+# Remaining after teardown, which removes only the provider footprint.
+footprint = [
+  "tailnet device {tailscale_name}",
+  "tailnet tag {tailscale_tag}",
+  "SSH entry {host_name}",
+]
+
+# Provider-neutral scripts act on the host by Tailscale name and SSH only.
+[paths]
+setup = "operations/aws/agent-host/setup.sh"
+status = "operations/aws/agent-host/status.sh"
+
+[parameters.host_name]
+summary = "Operating-system host name and resource name"
+default = "ki-techne-{name}"
+env = "AGENT_HOST_NAME"
+scripts = ["setup", "provision", "stop"]
+
+[parameters.tailscale_name]
+summary = "Tailnet device name, used as the SSH target"
+default = "ki-techne-{name}"
+env = "AGENT_HOST_TAILSCALE_NAME"
+scripts = ["setup", "status", "provision"]
+
+[parameters.tailscale_tag]
+summary = "Tailnet tag the host advertises"
+default = "tag:ki-techne-{name}"
+env = "AGENT_HOST_TAILSCALE_TAG"
+scripts = ["provision"]
+
+[parameters.repositories]
+summary = "Repository list file, one `<owner>/<repo> <clone URL>` per line"
+default = "operations/aws/agent-host/host/repositories.txt"
+env = "AGENT_HOST_REPOSITORIES"
+scripts = ["setup"]
+
+[parameters.workspace]
+summary = "Workspace root on the host; a leading ~/ is the operator's home there"
+default = "~/workspaces/kit"
+env = "KI_AGENT_HOST_WORKSPACE"
+scripts = ["setup", "status"]
+
+[providers.aws]
+summary = "One EC2 instance in its own VPC, built by a CloudFormation stack"
+footprint = [
+  "CloudFormation stack {aws.stack_name}",
+  "SSM parameters {aws.parameter_prefix}/",
+  "IAM operator role {aws.operator_role}",
+  "AWS operator profile {aws.operator_profile}",
+]
+
+[providers.aws.paths]
+template = "infra/aws/agent-host-stack.yaml"
+provision = "operations/aws/agent-host/provision.sh"
+stop = "operations/aws/agent-host/stop.sh"
+destroy = "operations/aws/agent-host/destroy.sh"
+
+[providers.aws.parameters.account]
+summary = "AWS account the footprint lives in; credentials in any other are refused"
+required = true
+env = "EXPECTED_AWS_ACCOUNT"
+scripts = ["provision", "stop", "destroy"]
+
+[providers.aws.parameters.region]
+summary = "AWS region"
+required = true
+env = "AWS_REGION"
+scripts = ["provision", "stop", "destroy"]
+
+[providers.aws.parameters.admin_profile]
+summary = "Administrative profile that provisions and destroys the footprint"
+required = true
+env = "AWS_PROFILE"
+scripts = ["provision", "destroy"]
+
+[providers.aws.parameters.operator_profile]
+summary = "Least-privilege profile that assumes the operator role"
+required = true
+env = "AWS_PROFILE"
+scripts = ["stop"]
+
+[providers.aws.parameters.tag]
+summary = "Value of the host id tag on the stack and every resource"
+default = "{name}"
+env = "AGENT_HOST_ID"
+scripts = ["provision", "stop", "destroy"]
+
+[providers.aws.parameters.stack_name]
+summary = "CloudFormation stack name"
+default = "ki-techne-{name}"
+env = "AGENT_HOST_STACK_NAME"
+scripts = ["provision", "destroy"]
+
+[providers.aws.parameters.parameter_prefix]
+summary = "SSM Parameter Store prefix holding the host's secrets"
+default = "/ki/techne/{name}"
+env = "AGENT_HOST_PARAMETER_PREFIX"
+scripts = ["provision", "destroy"]
+
+[providers.aws.parameters.operator_role]
+summary = "IAM role the operator profile must resolve to; created by hand"
+default = "ki-techne-{name}-operator"
+
+[providers.aws.parameters.instance_type]
+summary = "EC2 instance type"
+default = "t3.medium"
+env = "AGENT_HOST_INSTANCE_TYPE"
+scripts = ["provision"]
+
+[providers.aws.parameters.volume_size]
+summary = "Root volume size in GiB"
+default = 40
+env = "AGENT_HOST_VOLUME_SIZE"
+scripts = ["provision"]
+
+# An instance is the binding's only when every selector matches.
+[providers.aws.selectors]
+tag_key = "ki-agent-host-id"
+tag_value = "{aws.tag}"
+name_tag = "{host_name}"
+stack_tag_key = "ki-agent-host-id"
+operator_role = "{aws.operator_role}"
+
+[providers.aws.tags]
+ki-lifecycle = "prototype"
+ki-work-item = "KI-ARCADIA-GOV-020"

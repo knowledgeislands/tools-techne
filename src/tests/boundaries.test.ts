@@ -7,7 +7,7 @@ import { describe, expect, test } from 'vitest'
 
 const execute = promisify(execFile)
 const checker = resolve('tooling/boundaries/node_modules/.bin/depcruise')
-const moduleFloor = 14
+const moduleFloor = 18
 interface Dependency {
   resolved: string
   couldNotResolve?: boolean
@@ -69,14 +69,14 @@ describe('resolved dependency boundaries', () => {
     try {
       await writeFile(join(fixture, '.dependency-cruiser.ts'), await readFile('.dependency-cruiser.ts'))
       await writeFile(join(fixture, 'tsconfig.json'), await readFile('tsconfig.json'))
-      await mkdir(join(fixture, 'src'), { recursive: true })
+      await mkdir(join(fixture, 'src/providers/aws'), { recursive: true })
       await writeFile(join(fixture, 'src/cli.ts'), 'export interface Probe { value: string }\n')
       await writeFile(
-        join(fixture, 'src/aws.ts'),
-        "import type { Probe } from './cli.ts'\nexport type Crossing = Probe\n"
+        join(fixture, 'src/providers/aws/client.ts'),
+        "import type { Probe } from '../../cli.ts'\nexport type Crossing = Probe\n"
       )
       const graph = await cruise(fixture)
-      const source = graph.modules.find((module) => module.source === 'src/aws.ts')
+      const source = graph.modules.find((module) => module.source === 'src/providers/aws/client.ts')
       expect(source?.dependencies).toContainEqual(
         expect.objectContaining({
           resolved: 'src/cli.ts',
@@ -87,6 +87,24 @@ describe('resolved dependency boundaries', () => {
       expect(graph.summary.violations.map((violation) => violation.rule.name)).toContain(
         'providers-do-not-import-the-cli'
       )
+    } finally {
+      await rm(fixture, { recursive: true, force: true })
+    }
+  }, 20000)
+
+  test('keeps AWS modules behind the provider contract', async () => {
+    const fixture = await mkdtemp(join(tmpdir(), 'techne-boundary-'))
+    try {
+      await writeFile(join(fixture, '.dependency-cruiser.ts'), await readFile('.dependency-cruiser.ts'))
+      await writeFile(join(fixture, 'tsconfig.json'), await readFile('tsconfig.json'))
+      await mkdir(join(fixture, 'src/providers/aws'), { recursive: true })
+      await writeFile(join(fixture, 'src/providers/aws/client.ts'), 'export const client = 1\n')
+      await writeFile(join(fixture, 'src/providers/index.ts'), "export { client } from './aws/client.ts'\n")
+      await writeFile(join(fixture, 'src/harness.ts'), "export { client } from './providers/aws/client.ts'\n")
+      const graph = await cruise(fixture)
+      expect(graph.summary.violations.map((violation) => [violation.from, violation.rule.name])).toEqual([
+        ['src/harness.ts', 'aws-stays-behind-the-provider-contract']
+      ])
     } finally {
       await rm(fixture, { recursive: true, force: true })
     }

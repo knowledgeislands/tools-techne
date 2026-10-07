@@ -1,0 +1,31 @@
+# A test recipe two providers support: AWS and the tests' stub provider.
+schema = "techne/recipe/v1"
+name = "multi"
+summary = "Test recipe for two providers"
+runtime = "direct"
+footprint = [{ description = "tailnet device {tailscale_name}" }, { name = "named entry" }]
+
+[paths]
+setup = "multi/setup.sh"
+status = "multi/status.sh"
+
+[parameters.tailscale_name]
+default = "multi-{name}"
+env = "MULTI_HOST"
+scripts = ["setup", "status"]
+
+[parameters.workspace]
+required = true
+
+[providers.aws.selectors]
+tag_key = "multi-id"
+tag_value = "{name}"
+operator_role = "{name}-operator"
+
+[providers.stub]
+footprint = ["stub zone {stub.zone}", "unresolved {stub.missing}"]
+
+[providers.stub.parameters.zone]
+default = "zone-{name}"
+env = "STUB_ZONE"
+scripts = ["status"]

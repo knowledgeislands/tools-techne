@@ -1,30 +1,21 @@
-import { AwsClient, failureMessage } from './aws.ts'
-import type { TechneConfig } from './config.ts'
-import { TechneError } from './errors.ts'
-import type { CommandResult, CommandRunner } from './process.ts'
+import { TechneError } from '../../errors.ts'
+import { type CommandResult, type CommandRunner, failureMessage } from '../../process.ts'
+import type { HostAdapter, HostInstance, HostReport } from '../provider.ts'
+import { AwsClient, type AwsSettings } from './client.ts'
 
-const TAG_KEY = 'ki-agent-host-id'
-const TAG_VALUE = 'agent-host'
-export const AGENT_HOST_SELECTOR = `${TAG_KEY}=${TAG_VALUE}`
-export const AGENT_HOST_NAME = 'ki-techne-agent-host'
-
-const OPERATOR_ROLE = 'ki-techne-agent-host-operator'
 const NON_TERMINATED_STATES = 'pending,running,stopping,stopped'
 
-export interface AgentHost {
-  instanceId: string
-  state: string
+// What the recipe's AWS selectors and the binding resolve to for one host.
+export interface AwsHostSettings extends AwsSettings {
+  operatorProfile: string
+  operatorRole: string
+  tagKey: string
+  tagValue: string
+  // The Name tag an instance must carry, when the recipe selects on it.
+  nameTag: string | null
 }
 
-export interface AgentHostStatus {
-  exists: boolean
-  instanceId: string | null
-  state: string
-  region: string
-  selector: string
-}
-
-function parseHosts(value: string): AgentHost[] {
+function parseHosts(value: string): HostInstance[] {
   let parsed: unknown
   try {
     parsed = JSON.parse(value)
@@ -48,27 +39,41 @@ function parseHosts(value: string): AgentHost[] {
   })
 }
 
-export class AgentHostClient {
-  private readonly runner: CommandRunner
-  private readonly config: TechneConfig
+export class AwsHost implements HostAdapter {
+  readonly values: Readonly<Record<string, string>>
+  private readonly settings: AwsHostSettings
+  private readonly operator: AwsClient
 
-  constructor(runner: CommandRunner, config: TechneConfig) {
-    this.runner = runner
-    this.config = config
+  constructor(runner: CommandRunner, settings: AwsHostSettings, values: Readonly<Record<string, string>>) {
+    this.settings = settings
+    this.values = values
+    this.operator = new AwsClient(runner, { ...settings, profile: settings.operatorProfile })
+  }
+
+  get environment(): Readonly<Record<string, string>> {
+    return this.settings.environment
+  }
+
+  private get selector(): string {
+    const name = this.settings.nameTag === null ? '' : `, Name=${this.settings.nameTag}`
+    return `${this.settings.tagKey}=${this.settings.tagValue}${name}`
   }
 
   async verifyOperator(): Promise<void> {
-    const identity = await new AwsClient(this.runner, { ...this.config, profile: this.config.hostProfile }).identity()
-    if (!identity.arn.startsWith(`arn:aws:sts::${identity.account}:assumed-role/${OPERATOR_ROLE}/`)) {
-      throw new TechneError(`refusing credentials that are not the ${OPERATOR_ROLE} role in the expected account`)
+    const identity = await this.operator.identity()
+    const role = this.settings.operatorRole
+    if (!identity.arn.startsWith(`arn:aws:sts::${identity.account}:assumed-role/${role}/`)) {
+      throw new TechneError(`refusing credentials that are not the ${role} role in the expected account`)
     }
   }
 
-  async find(): Promise<AgentHost | null> {
+  async find(): Promise<HostInstance | null> {
+    await this.verifyOperator()
     const result = await this.ec2([
       'describe-instances',
       '--filters',
-      `Name=tag:${TAG_KEY},Values=${TAG_VALUE}`,
+      `Name=tag:${this.settings.tagKey},Values=${this.settings.tagValue}`,
+      ...(this.settings.nameTag === null ? [] : [`Name=tag:Name,Values=${this.settings.nameTag}`]),
       `Name=instance-state-name,Values=${NON_TERMINATED_STATES}`,
       '--query',
       'Reservations[].Instances[].[InstanceId,State.Name]',
@@ -81,21 +86,20 @@ export class AgentHostClient {
     const hosts = parseHosts(result.stdout)
     if (hosts.length > 1) {
       throw new TechneError(
-        `refusing: more than one instance tagged ${AGENT_HOST_SELECTOR}: ${hosts.map((host) => host.instanceId).join(', ')}`
+        `refusing: more than one instance tagged ${this.selector}: ${hosts.map((host) => host.instanceId).join(', ')}`
       )
     }
-    return hosts[0] ?? null
+    if (hosts[0] === undefined) return null
+    return hosts[0]
   }
 
-  async status(): Promise<AgentHostStatus> {
-    await this.verifyOperator()
+  async status(): Promise<HostReport> {
     const host = await this.find()
     return {
       exists: host !== null,
       instanceId: host?.instanceId ?? null,
       state: host?.state ?? 'absent',
-      region: this.config.region,
-      selector: AGENT_HOST_SELECTOR
+      details: { region: this.settings.region, selector: this.selector }
     }
   }
 
@@ -120,13 +124,13 @@ export class AgentHostClient {
   }
 
   private async ec2(args: readonly string[]): Promise<CommandResult> {
-    return await this.runner.run('aws', [
+    return await this.operator.run([
       'ec2',
       ...args,
       '--profile',
-      this.config.hostProfile,
+      this.settings.operatorProfile,
       '--region',
-      this.config.region
+      this.settings.region
     ])
   }
 }

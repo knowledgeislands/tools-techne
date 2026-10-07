@@ -1,6 +1,6 @@
-import type { TechneConfig } from './config.ts'
-import { TechneError } from './errors.ts'
-import type { CommandResult, CommandRunner } from './process.ts'
+import { TechneError } from '../../errors.ts'
+import { type CommandResult, type CommandRunner, failureMessage } from '../../process.ts'
+import type { ControllerStatus } from '../provider.ts'
 
 const EXPIRED_SSO_MARKERS = [
   'unauthorizedssotoken',
@@ -21,16 +21,12 @@ export interface AwsIdentity {
   arn: string
 }
 
-export interface ControllerStatus {
-  exists: boolean
-  stackName: string
-  stackStatus: string | null
-  instanceId: string | null
-}
-
-export function failureMessage(summary: string, result: CommandResult): string {
-  const detail = result.stderr.trim() || result.stdout.trim()
-  return detail.length > 0 ? `${summary}: ${detail}` : summary
+// The profile, region and account one AWS call uses, and the variables it runs with.
+export interface AwsSettings {
+  profile: string
+  region: string
+  account: string
+  environment: Readonly<Record<string, string>>
 }
 
 function isExpiredSsoSession(result: CommandResult): boolean {
@@ -69,11 +65,18 @@ function outputValue(stack: Record<string, unknown>, key: string): string | null
 
 export class AwsClient {
   private readonly runner: CommandRunner
-  private readonly config: TechneConfig
+  private readonly config: AwsSettings
 
-  constructor(runner: CommandRunner, config: TechneConfig) {
+  constructor(runner: CommandRunner, config: AwsSettings) {
     this.runner = runner
     this.config = config
+  }
+
+  async run(args: readonly string[], interactive = false): Promise<CommandResult> {
+    return await this.runner.run('aws', args, {
+      env: this.config.environment,
+      ...(interactive ? { mode: 'interactive' as const } : {})
+    })
   }
 
   async account(): Promise<string> {
@@ -81,14 +84,7 @@ export class AwsClient {
   }
 
   async identity(): Promise<AwsIdentity> {
-    const result = await this.runner.run('aws', [
-      'sts',
-      'get-caller-identity',
-      '--profile',
-      this.config.profile,
-      '--output',
-      'json'
-    ])
+    const result = await this.run(['sts', 'get-caller-identity', '--profile', this.config.profile, '--output', 'json'])
     if (result.exitCode !== 0) {
       if (isExpiredSsoSession(result)) {
         throw new AwsAuthenticationExpiredError(this.config.profile)
@@ -99,21 +95,19 @@ export class AwsClient {
     if (typeof identity['Account'] !== 'string') {
       throw new TechneError('AWS identity response does not contain an account')
     }
-    if (identity['Account'] !== this.config.expectedAccount) {
-      throw new TechneError(`refusing AWS account ${identity['Account']}; expected ${this.config.expectedAccount}`)
+    if (identity['Account'] !== this.config.account) {
+      throw new TechneError(`refusing AWS account ${identity['Account']}; expected ${this.config.account}`)
     }
     return { account: identity['Account'], arn: typeof identity['Arn'] === 'string' ? identity['Arn'] : '' }
   }
 
   async login(): Promise<string> {
-    const session = await this.runner.run('aws', ['configure', 'get', 'sso_session', '--profile', this.config.profile])
+    const session = await this.run(['configure', 'get', 'sso_session', '--profile', this.config.profile])
     if (session.exitCode !== 0 || session.stdout.trim().length === 0) {
       throw new TechneError(`AWS profile ${this.config.profile} is not configured for IAM Identity Center`)
     }
 
-    const result = await this.runner.run('aws', ['sso', 'login', '--profile', this.config.profile], {
-      mode: 'interactive'
-    })
+    const result = await this.run(['sso', 'login', '--profile', this.config.profile], true)
     if (result.exitCode !== 0) {
       throw new TechneError(`AWS login failed for profile ${this.config.profile}`)
     }
@@ -121,9 +115,9 @@ export class AwsClient {
     return await this.account()
   }
 
-  async controllerStatus(): Promise<ControllerStatus> {
+  async controllerStatus(stackName: string): Promise<ControllerStatus> {
     await this.account()
-    const result = await this.runner.run('aws', [
+    const result = await this.run([
       'cloudformation',
       'describe-stacks',
       '--profile',
@@ -131,7 +125,7 @@ export class AwsClient {
       '--region',
       this.config.region,
       '--stack-name',
-      this.config.controllerStack,
+      stackName,
       '--output',
       'json'
     ])
@@ -139,7 +133,7 @@ export class AwsClient {
       if (result.stderr.includes('does not exist')) {
         return {
           exists: false,
-          stackName: this.config.controllerStack,
+          stackName,
           stackStatus: null,
           instanceId: null
         }
@@ -158,15 +152,14 @@ export class AwsClient {
     const stack = value as Record<string, unknown>
     return {
       exists: true,
-      stackName: this.config.controllerStack,
+      stackName,
       stackStatus: typeof stack['StackStatus'] === 'string' ? stack['StackStatus'] : null,
       instanceId: outputValue(stack, 'ControllerInstanceId')
     }
   }
 
   async startBootstrap(instanceId: string): Promise<void> {
-    const result = await this.runner.run(
-      'aws',
+    const result = await this.run(
       [
         'ssm',
         'start-session',
@@ -181,7 +174,7 @@ export class AwsClient {
         '--parameters',
         'command=["sudo /opt/ki-techne-harness/deploy/runtime/controller/bootstrap.sh"]'
       ],
-      { mode: 'interactive' }
+      true
     )
     if (result.exitCode !== 0) {
       throw new TechneError('interactive controller bootstrap session failed')

@@ -4,6 +4,10 @@ export type RunMode = 'capture' | 'interactive'
 
 export interface RunOptions {
   mode?: RunMode
+  // Variables added to the inherited environment, as the harness script contract requires.
+  env?: Readonly<Record<string, string>>
+  // Working directory; recipe paths in values are relative to the harness checkout.
+  cwd?: string
 }
 
 export interface CommandResult {
@@ -16,6 +20,8 @@ export interface CommandCall {
   command: string
   args: readonly string[]
   mode: RunMode
+  env?: Readonly<Record<string, string>>
+  cwd?: string
 }
 
 export interface CommandRunner {
@@ -32,6 +38,8 @@ export class BunCommandRunner implements CommandRunner {
 
     return await new Promise((resolve) => {
       const child = spawn(command, [...args], {
+        env: { ...process.env, ...options.env },
+        ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
         stdio: mode === 'interactive' ? 'inherit' : ['ignore', 'pipe', 'pipe']
       })
       let stdout = ''
@@ -51,4 +59,9 @@ export class BunCommandRunner implements CommandRunner {
       })
     })
   }
+}
+
+export function failureMessage(summary: string, result: CommandResult): string {
+  const detail = result.stderr.trim() || result.stdout.trim()
+  return detail.length > 0 ? `${summary}: ${detail}` : summary
 }

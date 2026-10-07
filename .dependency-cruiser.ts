@@ -20,8 +20,15 @@ const config: IConfiguration = {
       name: 'providers-do-not-import-the-cli',
       comment: 'Typed provider and subprocess operations cannot depend on CLI grammar or rendering.',
       severity: 'error',
-      from: { path: '^src/(agent-host|aws|auth|config|errors|harness|process|tailscale)\\.ts$' },
+      from: { path: '^src/(providers/.+|auth|bindings|config|errors|harness|process|recipes|tailscale|toml)\\.ts$' },
       to: { path: '^src/(cli|main|runtime)\\.ts$' }
+    },
+    {
+      name: 'aws-stays-behind-the-provider-contract',
+      comment: 'Only the provider registry reaches the AWS adapter; commands call it through the provider contract.',
+      severity: 'error',
+      from: { pathNot: '^src/(providers/index\\.ts|providers/aws/|tests/)' },
+      to: { path: '^src/providers/aws/' }
     },
     {
       name: 'fixtures-do-not-enter-the-product',
