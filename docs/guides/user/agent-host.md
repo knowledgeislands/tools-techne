@@ -73,4 +73,4 @@ Teardown terminates the instance, which cannot be undone. It needs an interactiv
 - **Harness checkout not found:** clone `ki-techne-harness` to the default path, or point `--harness-dir` or `TECHNE_HARNESS_DIR` at your checkout.
 - **Workspace report failed:** the error shows the harness script's message, usually an SSH failure; check that `ssh ki-techne-agent-host` works.
 
-Use `techne help host <command>` or `man techne` for the option reference.
+Use `techne host --help` for the command list, `techne help host <command>` or `techne host <command> --help` for one command, or `man techne` for the option reference.

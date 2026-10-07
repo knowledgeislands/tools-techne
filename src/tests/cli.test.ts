@@ -279,6 +279,72 @@ describe('techne CLI', () => {
     const unknown = harness(runner)
     expect(await unknown.run(['help', 'missing'])).toBe(2)
     expect(unknown.output().stderr).toContain('unknown help topic')
+    expect(unknown.output().stderr).toContain("Run 'techne help <command>'")
+    expect(unknown.output().stdout).toBe('')
+  })
+
+  test('shows the same help through --help, -h and help at every level', async () => {
+    for (const command of [
+      ['diag'],
+      ['doctor'],
+      ['auth'],
+      ['auth', 'login'],
+      ['controller'],
+      ['controller', 'status'],
+      ['controller', 'bootstrap'],
+      ['host'],
+      ['host', 'status'],
+      ['host', 'setup'],
+      ['host', 'connect'],
+      ['completion'],
+      ['help']
+    ]) {
+      const named = harness(new FakeRunner([]))
+      expect(await named.run(['help', ...command])).toBe(0)
+      const expected = named.output().stdout
+      expect(expected).toMatch(/^Usage: techne /)
+      expect(expected).toContain(command.join(' '))
+      for (const flag of ['--help', '-h']) {
+        const runner = new FakeRunner([])
+        const cli = harness(runner)
+        expect(await cli.run([...command, flag]), `${command.join(' ')} ${flag}`).toBe(0)
+        expect(cli.output().stdout).toBe(expected)
+        expect(cli.output().stderr).toBe('')
+        expect(runner.calls).toHaveLength(0)
+      }
+    }
+    const connect = harness(new FakeRunner([]))
+    expect(await connect.run(['host', 'connect', 'projects', '--help'])).toBe(0)
+    expect(connect.output().stdout).toContain('host connect [--dry-run] [path]')
+    const completion = harness(new FakeRunner([]))
+    expect(await completion.run(['completion', 'zsh', '--help'])).toBe(0)
+    expect(completion.output().stdout).toContain('Usage: techne completion <bash|zsh>')
+  })
+
+  test('lists group subcommands and rejects a bare group with its usage', async () => {
+    for (const [group, commands, message] of [
+      ['auth', ['login'], 'login'],
+      ['controller', ['status', 'bootstrap'], 'status or bootstrap'],
+      [
+        'host',
+        ['status', 'setup', 'start', 'stop', 'teardown', 'connect'],
+        'status, setup, start, stop, teardown or connect'
+      ]
+    ] as const) {
+      const help = harness(new FakeRunner([]))
+      expect(await help.run([group, '--help'])).toBe(0)
+      expect(help.output().stdout).toContain(`Usage: techne [global options] ${group} <command>`)
+      for (const command of commands) expect(help.output().stdout).toMatch(new RegExp(`^  ${command} `, 'm'))
+
+      const runner = new FakeRunner([])
+      const bare = harness(runner)
+      expect(await bare.run([group])).toBe(2)
+      expect(bare.output().stdout).toBe('')
+      expect(bare.output().stderr).toBe(
+        `techne: error: ${group} requires a command: ${message}\n${help.output().stdout}`
+      )
+      expect(runner.calls).toHaveLength(0)
+    }
   })
 
   test('reports its version without running a subprocess', async () => {
@@ -421,9 +487,16 @@ describe('techne CLI', () => {
     const cli = harness(new FakeRunner([]))
 
     expect(await cli.run(['controller', 'explode'])).toBe(2)
-    expect(cli.output().stderr).toContain('unknown command')
+    expect(cli.output().stderr).toContain('techne: error: unknown command: controller explode\n')
+    expect(cli.output().stderr).toContain('Usage: techne [global options] controller <command>')
     expect(await cli.run(['controller', 'explode', '--help'])).toBe(2)
     expect(await cli.run(['controller', 'explode', '--version'])).toBe(2)
+    expect(cli.output().stdout).toBe('')
+
+    const root = harness(new FakeRunner([]))
+    expect(await root.run(['explode'])).toBe(2)
+    expect(root.output().stderr).toContain('techne: error: unknown command: explode\n')
+    expect(root.output().stderr).toContain("Run 'techne help <command>'")
   })
 
   test('logs in every configured authentication surface', async () => {

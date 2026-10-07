@@ -60,9 +60,51 @@ Global options:
   --pull                      fast-forward clean checkouts on the host during host setup
   -h, --help                  show help
   -V, --version               show version
+
+Run 'techne help <command>' or 'techne <command> --help' for command help.
 `
 
+const GROUP_COMMANDS: Readonly<Record<string, string>> = {
+  auth: 'login',
+  controller: 'status or bootstrap',
+  host: 'status, setup, start, stop, teardown or connect'
+}
+
 const HELP_TOPICS: Readonly<Record<string, string>> = {
+  help: 'Usage: techne help [command]\nShow general help, or help for a command or command group.\n',
+  auth: `Usage: techne [global options] auth <command>
+
+Authenticate the configured provider surfaces.
+
+Commands:
+  login         open an interactive authentication session
+
+Run 'techne help auth <command>' for command help.
+`,
+  controller: `Usage: techne [global options] controller <command>
+
+Inspect and bootstrap the Techne controller.
+
+Commands:
+  status        inspect the configured controller stack
+  bootstrap     open a private interactive bootstrap session
+
+Run 'techne help controller <command>' for command help.
+`,
+  host: `Usage: techne [global options] host <command>
+
+Operate the one agent host tagged ki-agent-host-id=agent-host.
+
+Commands:
+  status        report the agent host and its workspace, read-only
+  setup         converge the agent host workspace over SSH
+  start         start a stopped agent host
+  stop          stop a running agent host: the kill switch
+  teardown      terminate the agent host after typed confirmation
+  connect       open a path on the agent host in Zed over SSH
+
+Run 'techne help host <command>' for command help.
+`,
   diag: 'Usage: techne [global options] diag [--full]\nReport share-safe tool, installation, host, runtime, and configuration facts; --full includes paths and identifiers.\n',
   doctor:
     'Usage: techne [global options] doctor\nReport diagnostic context, read-only local prerequisite and AWS identity checks, verdict, and counts; freshness is not checked.\n',
@@ -86,9 +128,13 @@ const HELP_TOPICS: Readonly<Record<string, string>> = {
 
 const HOST_CHANGES = new Set(['host setup', 'host start', 'host stop', 'host teardown', 'host connect'])
 
-function commandName(invocation: Invocation): string {
-  if (invocation.command[0] === 'host' && invocation.command[1] === 'connect') return 'host connect'
-  return invocation.command.join(' ')
+function commandName(command: readonly string[]): string {
+  if (command[0] === 'host' && command[1] === 'connect') return 'host connect'
+  return command.join(' ')
+}
+
+function scopedHelp(command: readonly string[]): string {
+  return HELP_TOPICS[commandName(command)] ?? HELP_TOPICS[command[0] ?? ''] ?? HELP
 }
 
 function cleanVersion(result: { stdout: string; stderr: string }): string {
@@ -477,10 +523,17 @@ const COMMAND_HANDLERS: Readonly<
 }
 
 export async function runCli(argv: readonly string[], dependencies: CliDependencies): Promise<number> {
+  let usage = HELP
   try {
     const invocation = parseInvocation(argv, dependencies.environment)
-    const name = commandName(invocation)
-    if (invocation.command[0] === 'completion' && name !== 'completion bash' && name !== 'completion zsh') {
+    const name = commandName(invocation.command)
+    usage = scopedHelp(invocation.command)
+    if (
+      invocation.command[0] === 'completion' &&
+      name !== 'completion bash' &&
+      name !== 'completion zsh' &&
+      !(invocation.help && name === 'completion')
+    ) {
       throw new TechneError('completion requires exactly one supported shell: bash or zsh', 2)
     }
     if (invocation.full && invocation.command[0] !== 'diag') {
@@ -493,14 +546,23 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
       throw new TechneError('--pull is only supported for host setup', 2)
     }
     if (invocation.command[0] === 'help') {
-      const topic = invocation.command.slice(1).join(' ')
+      const topic = commandName(invocation.command.slice(1)) || (invocation.help ? 'help' : '')
       const help = topic ? HELP_TOPICS[topic] : HELP
-      if (!help) throw new TechneError(`unknown help topic: ${topic}`, 2)
+      if (!help) {
+        usage = HELP
+        throw new TechneError(`unknown help topic: ${topic}`, 2)
+      }
       dependencies.io.stdout(help)
       return 0
     }
     const handler = COMMAND_HANDLERS[name]
     if (name && !handler) {
+      if (invocation.help && HELP_TOPICS[name]) {
+        dependencies.io.stdout(usage)
+        return 0
+      }
+      const commands = GROUP_COMMANDS[name]
+      if (commands) throw new TechneError(`${name} requires a command: ${commands}`, 2)
       throw new TechneError(`unknown command: ${name}`, 2)
     }
     if (invocation.version) {
@@ -508,14 +570,14 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
       return 0
     }
     if (invocation.help || !handler) {
-      dependencies.io.stdout(HELP)
+      dependencies.io.stdout(usage)
       return 0
     }
     return await handler(invocation, dependencies)
   } catch (error) {
     if (error instanceof TechneError) {
       dependencies.io.stderr(`techne: error: ${error.message}\n`)
-      if (error.exitCode === 2) dependencies.io.stderr('Usage: techne [global options] <command>\n')
+      if (error.exitCode === 2) dependencies.io.stderr(usage)
       return error.exitCode
     }
     dependencies.io.stderr(`techne: error: ${String(error)}\n`)

@@ -35,7 +35,8 @@ source/package layout and a Git checkout or worktree marker. Copied source
 without that evidence reports unknown; a source URL alone is insufficient.
 .TP
 .B help [command]
-Show general or command-specific help.
+Show general help, or help for a command or command group such as
+.BR host .
 .TP
 .B doctor
 Check the local runtime, AWS CLI, Session Manager plugin and expected
@@ -172,7 +173,8 @@ Request machine-readable output where supported.
 Include local paths and identifiers in diagnostic output.
 .TP
 .BR -h , " --help"
-Show command help.
+Show help for the selected command or command group; a command group given
+without a command is a usage error.
 .TP
 .BR -V , " --version"
 Show the version.

@@ -27,6 +27,7 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 - Derive the executable version from the package version, keeping source and compiled releases on one version authority.
 - Operate the single agent host with the guards of the chezmoi `techne-agent-host` helper: the `ki-agent-host-id=agent-host` tag selector, refusal unless exactly one instance matches, the operator-role credential check, typed-ID teardown confirmation and `--dry-run` previews.
 - Converge the agent host workspace with `host setup`, and add the harness workspace report to `host status` as an additive `workspace` section, both by running the Techne Harness agent-host scripts from a local checkout selected with `--harness-dir` or `TECHNE_HARNESS_DIR`.
+- Show help as the other KI CLIs do: `--help` or `-h` after any command or command group and `help [command]` print the same help on stdout with status 0; a command group lists its commands; a bare command group or unknown command exits 2 with a namespaced error and the relevant usage on stderr.
 - Print Bash and Zsh command and option completions without modifying shell startup files.
 - Mechanically enforce provider-to-CLI and runtime-to-fixture boundaries with a supported isolated parser, resolved-graph checks, and deliberately violating type-only fixtures.
 
