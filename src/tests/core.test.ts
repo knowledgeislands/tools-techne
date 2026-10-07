@@ -12,7 +12,8 @@ const CONFIG: TechneConfig = {
   region: 'region',
   expectedAccount: '123456789012',
   controllerStack: 'controller',
-  hostProfile: 'host-profile'
+  hostProfile: 'host-profile',
+  harnessDir: '/harness'
 }
 
 function result(stdout = '', stderr = '', exitCode = 0): CommandResult {

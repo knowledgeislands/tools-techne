@@ -4,6 +4,7 @@ import { AwsClient, type ControllerStatus } from './aws.ts'
 import { renderCompletion } from './completion.ts'
 import { type Environment, type Invocation, parseInvocation } from './config.ts'
 import { TechneError } from './errors.ts'
+import { HarnessCheckout, type WorkspaceStatus } from './harness.ts'
 import type { CommandRunner } from './process.ts'
 import type { TechneRuntime } from './runtime.ts'
 import { TailscaleClient } from './tailscale.ts'
@@ -38,6 +39,7 @@ Usage:
   techne [global options] controller status
   techne [global options] controller bootstrap
   techne [global options] host status
+  techne [global options] host setup [--pull] [--dry-run]
   techne [global options] host start [--dry-run]
   techne [global options] host stop [--dry-run]
   techne [global options] host teardown [--dry-run]
@@ -51,9 +53,11 @@ Global options:
   --account <id>              expected AWS account
   --controller-stack <name>   controller CloudFormation stack
   --host-profile <name>       AWS profile for the agent host operator role
+  --harness-dir <path>        local ki-techne-harness checkout for host setup and status
   --json                      machine-readable output where supported
   --full                      include local paths and identifiers in diag
   --dry-run                   print host changes without making them
+  --pull                      fast-forward clean checkouts on the host during host setup
   -h, --help                  show help
   -V, --version               show version
 `
@@ -67,7 +71,9 @@ const HELP_TOPICS: Readonly<Record<string, string>> = {
   'controller bootstrap':
     'Usage: techne [global options] controller bootstrap\nOpen a private interactive bootstrap session.\n',
   'host status':
-    'Usage: techne [global options] host status\nReport the one agent host tagged ki-agent-host-id=agent-host, read-only.\n',
+    'Usage: techne [global options] host status\nReport the one agent host tagged ki-agent-host-id=agent-host and, when it runs, the harness workspace report, read-only.\n',
+  'host setup':
+    'Usage: techne [global options] host setup [--pull] [--dry-run]\nConverge the agent host workspace by running the harness setup.sh over SSH; --pull fast-forwards clean checkouts.\n',
   'host start':
     'Usage: techne [global options] host start [--dry-run]\nStart a stopped agent host and wait until it runs.\n',
   'host stop': 'Usage: techne [global options] host stop [--dry-run]\nStop a running agent host: the kill switch.\n',
@@ -78,7 +84,7 @@ const HELP_TOPICS: Readonly<Record<string, string>> = {
   completion: 'Usage: techne completion <bash|zsh>\nPrint shell completion source.\n'
 }
 
-const HOST_CHANGES = new Set(['host start', 'host stop', 'host teardown', 'host connect'])
+const HOST_CHANGES = new Set(['host setup', 'host start', 'host stop', 'host teardown', 'host connect'])
 
 function commandName(invocation: Invocation): string {
   if (invocation.command[0] === 'host' && invocation.command[1] === 'connect') return 'host connect'
@@ -317,20 +323,50 @@ async function requireHost(client: AgentHostClient, invocation: Invocation, io: 
   return host
 }
 
-function printHostStatus(status: AgentHostStatus, invocation: Invocation, io: CliIo): void {
+function printHostStatus(status: AgentHostStatus, workspace: WorkspaceStatus, invocation: Invocation, io: CliIo): void {
   if (invocation.json) {
-    io.stdout(`${JSON.stringify({ schema: 'techne/host-status/v1', ...status })}\n`)
+    io.stdout(`${JSON.stringify({ schema: 'techne/host-status/v1', ...status, workspace })}\n`)
     return
   }
   io.stdout(`agent host: ${status.instanceId ?? 'absent'}\n`)
   io.stdout(`state: ${status.state}\n`)
   io.stdout(`selector: ${status.selector}\n`)
   io.stdout(`region: ${status.region}\n`)
+  if (workspace.state === 'reported') {
+    const report = workspace.report as string
+    io.stdout(`workspace: reported by ki-techne-harness status.sh\n${report}${report.endsWith('\n') ? '' : '\n'}`)
+  } else {
+    io.stdout(`workspace: ${workspace.state}${workspace.state === 'skipped' ? ` (${workspace.detail})` : ''}\n`)
+  }
 }
 
 async function hostStatus(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
   const status = await new AgentHostClient(dependencies.runner, invocation.config).status()
-  printHostStatus(status, invocation, dependencies.io)
+  const workspace: WorkspaceStatus =
+    status.state === 'running'
+      ? await new HarnessCheckout(dependencies.runner, invocation.config.harnessDir).workspaceStatus()
+      : { state: 'skipped', report: null, detail: `agent host is ${status.state}` }
+  printHostStatus(status, workspace, invocation, dependencies.io)
+  if (workspace.state === 'failed') {
+    dependencies.io.stderr(`techne: error: workspace report failed: ${workspace.detail}\n`)
+    return 1
+  }
+  return 0
+}
+
+async function hostSetup(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  rejectJson(invocation, 'host setup')
+  const harness = new HarnessCheckout(dependencies.runner, invocation.config.harnessDir)
+  const script = harness.script('setup.sh')
+  await new TailscaleClient(dependencies.runner).ensureReachable(AGENT_HOST_NAME)
+  const args = invocation.pull ? ['--pull'] : []
+  const command = ['bash', script, ...args].join(' ')
+  if (invocation.dryRun) {
+    dependencies.io.stdout(`dry run: would run ${command}\n`)
+    return 0
+  }
+  dependencies.io.stdout(`running ${command}\n`)
+  await harness.setup(script, args)
   return 0
 }
 
@@ -425,6 +461,7 @@ const COMMAND_HANDLERS: Readonly<
   'controller status': controllerStatus,
   'controller bootstrap': controllerBootstrap,
   'host status': hostStatus,
+  'host setup': hostSetup,
   'host start': hostStart,
   'host stop': hostStop,
   'host teardown': hostTeardown,
@@ -450,7 +487,10 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
       throw new TechneError('--full is only supported for diag', 2)
     }
     if (invocation.dryRun && !HOST_CHANGES.has(name)) {
-      throw new TechneError('--dry-run is only supported for host start, stop, teardown and connect', 2)
+      throw new TechneError('--dry-run is only supported for host setup, start, stop, teardown and connect', 2)
+    }
+    if (invocation.pull && name !== 'host setup') {
+      throw new TechneError('--pull is only supported for host setup', 2)
     }
     if (invocation.command[0] === 'help') {
       const topic = invocation.command.slice(1).join(' ')

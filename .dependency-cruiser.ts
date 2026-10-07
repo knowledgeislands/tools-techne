@@ -20,7 +20,7 @@ const config: IConfiguration = {
       name: 'providers-do-not-import-the-cli',
       comment: 'Typed provider and subprocess operations cannot depend on CLI grammar or rendering.',
       severity: 'error',
-      from: { path: '^src/(agent-host|aws|auth|config|errors|process|tailscale)\\.ts$' },
+      from: { path: '^src/(agent-host|aws|auth|config|errors|harness|process|tailscale)\\.ts$' },
       to: { path: '^src/(cli|main|runtime)\\.ts$' }
     },
     {

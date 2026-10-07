@@ -69,6 +69,17 @@ function hosts(...rows: [string, string][]): CommandResult {
   return response(JSON.stringify(rows))
 }
 
+const WORKSPACE_REPORT = 'Repositories under /home/techne/workspaces/kit\nsummary: REPOSITORIES=21 AT_RISK=0\n'
+
+function harnessCheckout(...scripts: string[]): string {
+  const directory = mkdtempSync(join(tmpdir(), 'techne-harness-'))
+  mkdirSync(join(directory, 'operations/aws/agent-host'), { recursive: true })
+  for (const script of scripts) {
+    writeFileSync(join(directory, 'operations/aws/agent-host', script), '#!/usr/bin/env bash\n')
+  }
+  return directory
+}
+
 function ec2Operations(runner: FakeRunner): string[] {
   return runner.calls.filter((call) => call.args[0] === 'ec2').map((call) => call.args[1] as string)
 }
@@ -304,7 +315,7 @@ describe('techne CLI', () => {
         'bash',
         [
           '-c',
-          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]; COMP_WORDS=(techne help controller bo); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == bootstrap ]]; COMP_WORDS=(techne --host-profile p host te); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == teardown ]]; COMP_WORDS=(techne host stop --dr); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == --dry-run ]]`,
+          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]; COMP_WORDS=(techne help controller bo); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == bootstrap ]]; COMP_WORDS=(techne --host-profile p host te); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == teardown ]]; COMP_WORDS=(techne host stop --dr); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == --dry-run ]]; COMP_WORDS=(techne --harness-dir d host setup --pu); COMP_CWORD=5; _techne; [[ "${dollar}{COMPREPLY[*]}" == --pull ]]`,
           '_',
           definition
         ],
@@ -657,8 +668,9 @@ describe('techne CLI', () => {
   })
 
   test('reports the one tagged agent host under the operator role', async () => {
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
-    const cli = harness(runner)
+    const checkout = harnessCheckout('status.sh')
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    const cli = harness(runner, { TECHNE_HARNESS_DIR: checkout })
 
     expect(await cli.run(['host', 'status', '--json'])).toBe(0)
     expect(JSON.parse(cli.output().stdout)).toEqual({
@@ -667,8 +679,15 @@ describe('techne CLI', () => {
       instanceId: INSTANCE,
       state: 'running',
       region: 'eu-west-1',
-      selector: 'ki-agent-host-id=agent-host'
+      selector: 'ki-agent-host-id=agent-host',
+      workspace: { state: 'reported', report: WORKSPACE_REPORT, detail: null }
     })
+    expect(runner.calls[2]).toEqual({
+      command: 'bash',
+      args: [join(checkout, 'operations/aws/agent-host/status.sh')],
+      mode: 'capture'
+    })
+    rmSync(checkout, { recursive: true, force: true })
     expect(cli.output().stdout).not.toContain(ACCOUNT)
     expect(runner.calls[0]?.args).toEqual([
       'sts',
@@ -700,8 +719,121 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['host', 'status'])).toBe(0)
     expect(cli.output().stdout).toBe(
-      'agent host: absent\nstate: absent\nselector: ki-agent-host-id=agent-host\nregion: eu-west-1\n'
+      'agent host: absent\nstate: absent\nselector: ki-agent-host-id=agent-host\nregion: eu-west-1\n' +
+        'workspace: skipped (agent host is absent)\n'
     )
+  })
+
+  test('renders the harness workspace report unchanged for a running host', async () => {
+    const checkout = harnessCheckout('status.sh')
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('summary: REPOSITORIES=0')])
+    const cli = harness(runner, { HOME: '/nowhere' })
+
+    expect(await cli.run(['host', 'status', '--harness-dir', checkout])).toBe(0)
+    expect(cli.output().stdout).toBe(
+      `agent host: ${INSTANCE}\nstate: running\nselector: ki-agent-host-id=agent-host\nregion: eu-west-1\n` +
+        'workspace: reported by ki-techne-harness status.sh\nsummary: REPOSITORIES=0\n'
+    )
+
+    const ended = harness(new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)]))
+    expect(await ended.run(['host', 'status', '--harness-dir', checkout])).toBe(0)
+    expect(ended.output().stdout).toMatch(/status\.sh\nRepositories under .*\nsummary: REPOSITORIES=21 AT_RISK=0\n$/)
+
+    const stopped = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
+    const stoppedCli = harness(stopped, { TECHNE_HARNESS_DIR: checkout })
+    expect(await stoppedCli.run(['host', 'status', '--json'])).toBe(0)
+    expect(JSON.parse(stoppedCli.output().stdout).workspace).toEqual({
+      state: 'skipped',
+      report: null,
+      detail: 'agent host is stopped'
+    })
+    expect(stopped.calls).toHaveLength(2)
+    rmSync(checkout, { recursive: true, force: true })
+  })
+
+  test('keeps the instance report and exits 1 when the workspace report fails', async () => {
+    const checkout = harnessCheckout('status.sh')
+    const failing = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', 'ssh: connect failed', 255)])
+    const cli = harness(failing, { TECHNE_HARNESS_DIR: checkout })
+
+    expect(await cli.run(['host', 'status'])).toBe(1)
+    expect(cli.output().stdout).toContain(`agent host: ${INSTANCE}\n`)
+    expect(cli.output().stdout).toContain('workspace: failed\n')
+    expect(cli.output().stderr).toBe(
+      'techne: error: workspace report failed: harness status.sh failed: ssh: connect failed\n'
+    )
+
+    const missing = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
+    const missingCli = harness(missing, { HOME: '/nowhere' })
+    expect(await missingCli.run(['host', 'status', '--json'])).toBe(1)
+    expect(JSON.parse(missingCli.output().stdout).workspace).toEqual({
+      state: 'failed',
+      report: null,
+      detail:
+        'ki-techne-harness checkout not found at /nowhere/workspaces/kit/knowledgeislands/ki-techne-harness; ' +
+        'clone it or set --harness-dir or TECHNE_HARNESS_DIR'
+    })
+    expect(missing.calls).toHaveLength(2)
+    rmSync(checkout, { recursive: true, force: true })
+  })
+
+  test('runs the harness setup script after checking the checkout and Tailscale', async () => {
+    const checkout = harnessCheckout('setup.sh')
+    const script = join(checkout, 'operations/aws/agent-host/setup.sh')
+    const runner = new FakeRunner([response(), response(), response()])
+    const cli = harness(runner, { TECHNE_HARNESS_DIR: checkout })
+
+    expect(await cli.run(['host', 'setup', '--pull'])).toBe(0)
+    expect(runner.calls).toEqual([
+      { command: 'tailscale', args: ['status'], mode: 'capture' },
+      { command: 'tailscale', args: ['ping', '-c', '1', '--timeout=10s', 'ki-techne-agent-host'], mode: 'capture' },
+      { command: 'bash', args: [script, '--pull'], mode: 'interactive' }
+    ])
+    expect(cli.output().stdout).toBe(`running bash ${script} --pull\n`)
+
+    const plain = new FakeRunner([response(), response(), response()])
+    expect(await harness(plain, { TECHNE_HARNESS_DIR: checkout }).run(['host', 'setup'])).toBe(0)
+    expect(plain.calls[2]?.args).toEqual([script])
+
+    const dry = new FakeRunner([response(), response()])
+    const dryCli = harness(dry, { TECHNE_HARNESS_DIR: checkout })
+    expect(await dryCli.run(['host', 'setup', '--dry-run', '--pull'])).toBe(0)
+    expect(dryCli.output().stdout).toBe(`dry run: would run bash ${script} --pull\n`)
+    expect(dry.calls.map((call) => call.command)).toEqual(['tailscale', 'tailscale'])
+
+    const failed = harness(new FakeRunner([response(), response(), response('', '', 3)]), {
+      TECHNE_HARNESS_DIR: checkout
+    })
+    expect(await failed.run(['host', 'setup'])).toBe(1)
+    expect(failed.output().stderr).toContain('harness setup failed with exit status 3')
+
+    const unreachable = new FakeRunner([response('', 'stopped', 1)])
+    const unreachableCli = harness(unreachable, { TECHNE_HARNESS_DIR: checkout })
+    expect(await unreachableCli.run(['host', 'setup'])).toBe(1)
+    expect(unreachableCli.output().stderr).toContain('Tailscale is not up')
+    expect(unreachable.calls).toHaveLength(1)
+    rmSync(checkout, { recursive: true, force: true })
+  })
+
+  test('refuses host setup without a usable harness checkout before running anything', async () => {
+    const empty = harnessCheckout()
+    const cases: [Record<string, string>, string[], string][] = [
+      [{}, [], 'no ki-techne-harness checkout is configured; set --harness-dir or TECHNE_HARNESS_DIR'],
+      [{ HOME: '/nowhere' }, [], 'ki-techne-harness checkout not found at /nowhere/workspaces/kit/knowledgeislands/'],
+      [
+        { TECHNE_HARNESS_DIR: '/environment' },
+        ['--harness-dir', empty],
+        `${empty} has no operations/aws/agent-host/setup.sh; update the ki-techne-harness checkout`
+      ]
+    ]
+    for (const [environment, args, message] of cases) {
+      const runner = new FakeRunner([])
+      const cli = harness(runner, environment)
+      expect(await cli.run(['host', 'setup', ...args])).toBe(1)
+      expect(cli.output().stderr).toContain(message)
+      expect(runner.calls).toHaveLength(0)
+    }
+    rmSync(empty, { recursive: true, force: true })
   })
 
   test('selects the host profile by flag over environment', async () => {
@@ -717,7 +849,11 @@ describe('techne CLI', () => {
   })
 
   test('refuses credentials that are not the operator role before any EC2 call', async () => {
-    for (const identityResponse of [operator('AWSAdministratorAccess'), operator(undefined, '999999999999')]) {
+    for (const identityResponse of [
+      operator('AWSAdministratorAccess'),
+      operator('ki-techne-agent-host-operator-other'),
+      operator(undefined, '999999999999')
+    ]) {
       const runner = new FakeRunner([identityResponse])
       const cli = harness(runner)
 
@@ -876,8 +1012,17 @@ describe('techne CLI', () => {
     ]) {
       expect(await cli.run(args)).toBe(2)
     }
-    expect(cli.output().stderr).toContain('--dry-run is only supported for host start, stop, teardown and connect')
-    for (const command of ['start', 'stop', 'teardown', 'connect']) {
+    expect(cli.output().stderr).toContain(
+      '--dry-run is only supported for host setup, start, stop, teardown and connect'
+    )
+    for (const args of [
+      ['host', 'status', '--pull'],
+      ['host', 'start', '--pull']
+    ]) {
+      expect(await cli.run(args)).toBe(2)
+    }
+    expect(cli.output().stderr).toContain('--pull is only supported for host setup')
+    for (const command of ['setup', 'start', 'stop', 'teardown', 'connect']) {
       expect(await cli.run(['host', command, '--json'])).toBe(2)
       expect(cli.output().stderr).toContain(`--json is not supported for host ${command}`)
     }
@@ -888,7 +1033,8 @@ describe('techne CLI', () => {
     const cli = harness(new FakeRunner([]))
     expect(await cli.run(['--help'])).toBe(0)
     expect(cli.output().stdout).toContain('host connect [--dry-run] [path]')
-    for (const command of ['status', 'start', 'stop', 'teardown', 'connect']) {
+    expect(cli.output().stdout).toContain('host setup [--pull] [--dry-run]')
+    for (const command of ['status', 'setup', 'start', 'stop', 'teardown', 'connect']) {
       expect(await cli.run(['help', 'host', command])).toBe(0)
       expect(cli.output().stdout).toContain(`host ${command}`)
     }

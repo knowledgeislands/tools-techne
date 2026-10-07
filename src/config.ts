@@ -6,6 +6,7 @@ export interface TechneConfig {
   expectedAccount: string
   controllerStack: string
   hostProfile: string
+  harnessDir: string
 }
 
 export interface Invocation {
@@ -14,6 +15,7 @@ export interface Invocation {
   json: boolean
   full: boolean
   dryRun: boolean
+  pull: boolean
   help: boolean
   version: boolean
 }
@@ -25,8 +27,11 @@ const DEFAULTS: TechneConfig = {
   region: 'eu-west-1',
   expectedAccount: '655383751458',
   controllerStack: 'ki-techne-ops-007-controller',
-  hostProfile: 'knowledge-islands-techne-agent-host'
+  hostProfile: 'knowledge-islands-techne-agent-host',
+  harnessDir: ''
 }
+
+const HARNESS_CHECKOUT = 'workspaces/kit/knowledgeislands/ki-techne-harness'
 
 type ConfigKey = keyof TechneConfig
 
@@ -35,7 +40,8 @@ const VALUE_FLAGS: Readonly<Record<string, ConfigKey>> = {
   '--region': 'region',
   '--account': 'expectedAccount',
   '--controller-stack': 'controllerStack',
-  '--host-profile': 'hostProfile'
+  '--host-profile': 'hostProfile',
+  '--harness-dir': 'harnessDir'
 }
 
 function environmentConfig(environment: Environment): TechneConfig {
@@ -44,7 +50,10 @@ function environmentConfig(environment: Environment): TechneConfig {
     region: environment['AWS_REGION'] ?? DEFAULTS.region,
     expectedAccount: environment['EXPECTED_AWS_ACCOUNT'] ?? DEFAULTS.expectedAccount,
     controllerStack: environment['CONTROLLER_STACK_NAME'] ?? DEFAULTS.controllerStack,
-    hostProfile: environment['TECHNE_HOST_PROFILE'] ?? DEFAULTS.hostProfile
+    hostProfile: environment['TECHNE_HOST_PROFILE'] ?? DEFAULTS.hostProfile,
+    harnessDir:
+      environment['TECHNE_HARNESS_DIR'] ??
+      (environment['HOME'] ? `${environment['HOME']}/${HARNESS_CHECKOUT}` : DEFAULTS.harnessDir)
   }
 }
 
@@ -54,6 +63,7 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
   let json = false
   let full = false
   let dryRun = false
+  let pull = false
   let help = false
   let version = false
 
@@ -69,6 +79,10 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
     }
     if (argument === '--dry-run') {
       dryRun = true
+      continue
+    }
+    if (argument === '--pull') {
+      pull = true
       continue
     }
     if (argument === '--help' || argument === '-h') {
@@ -95,5 +109,5 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
     command.push(argument)
   }
 
-  return { command, config, json, full, dryRun, help, version }
+  return { command, config, json, full, dryRun, pull, help, version }
 }
