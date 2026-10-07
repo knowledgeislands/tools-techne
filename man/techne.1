@@ -68,6 +68,20 @@ JSON output is not supported for this interactive command.
 Report the one non-terminated agent host instance tagged
 .BR ki-agent-host-id=agent-host ,
 its state and region, without changing it.
+When the instance is running, also run the harness
+.B operations/aws/agent-host/status.sh
+from the harness checkout and print its workspace report unchanged;
+JSON output carries it in a
+.B workspace
+object.
+A failed workspace report exits 1 after the instance report.
+.TP
+.B host setup [--pull]
+Check that Tailscale reaches the agent host, then run the harness
+.B operations/aws/agent-host/setup.sh
+from the harness checkout to converge the host workspace over SSH.
+.B --pull
+fast-forwards clean checkouts on the host.
 .TP
 .B host start
 Start a stopped agent host and wait until it runs.
@@ -87,6 +101,7 @@ Check that Tailscale reaches the agent host, then open
 Host commands use the agent-host profile, refuse credentials that are not the
 agent-host operator role in the expected account, and refuse unless exactly one
 tagged instance exists.
+.BR setup ,
 .BR start ,
 .BR stop ,
 .B teardown
@@ -94,6 +109,11 @@ and
 .B connect
 accept
 .BR --dry-run .
+The
+.B setup
+and
+.B connect
+commands make no AWS call.
 .TP
 .B completion bash|zsh
 Print a sourceable Bash or Zsh completion definition to standard output.
@@ -130,8 +150,20 @@ Select the controller CloudFormation stack.
 .BI "--host-profile " name
 Select the AWS profile for the agent host operator role.
 .TP
+.BI "--harness-dir " path
+Select the local ki-techne-harness checkout whose agent-host scripts
+.B host setup
+and
+.B host status
+run. Defaults to
+.BR $HOME/workspaces/kit/knowledgeislands/ki-techne-harness .
+.TP
 .B --dry-run
 Print host changes without making them.
+.TP
+.B --pull
+Fast-forward clean checkouts on the host during
+.BR "host setup" .
 .TP
 .B --json
 Request machine-readable output where supported.
@@ -161,6 +193,9 @@ Default controller stack name.
 .TP
 .B TECHNE_HOST_PROFILE
 Default agent host profile.
+.TP
+.B TECHNE_HARNESS_DIR
+Default ki-techne-harness checkout.
 .SH EXIT STATUS
 \&
 .PP
