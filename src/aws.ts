@@ -16,6 +16,11 @@ export class AwsAuthenticationExpiredError extends TechneError {
   }
 }
 
+export interface AwsIdentity {
+  account: string
+  arn: string
+}
+
 export interface ControllerStatus {
   exists: boolean
   stackName: string
@@ -23,7 +28,7 @@ export interface ControllerStatus {
   instanceId: string | null
 }
 
-function failureMessage(summary: string, result: CommandResult): string {
+export function failureMessage(summary: string, result: CommandResult): string {
   const detail = result.stderr.trim() || result.stdout.trim()
   return detail.length > 0 ? `${summary}: ${detail}` : summary
 }
@@ -33,7 +38,7 @@ function isExpiredSsoSession(result: CommandResult): boolean {
   return EXPIRED_SSO_MARKERS.some((marker) => detail.includes(marker))
 }
 
-function parseObject(value: string, summary: string): Record<string, unknown> {
+export function parseObject(value: string, summary: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(value)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -72,6 +77,10 @@ export class AwsClient {
   }
 
   async account(): Promise<string> {
+    return (await this.identity()).account
+  }
+
+  async identity(): Promise<AwsIdentity> {
     const result = await this.runner.run('aws', [
       'sts',
       'get-caller-identity',
@@ -93,7 +102,7 @@ export class AwsClient {
     if (identity['Account'] !== this.config.expectedAccount) {
       throw new TechneError(`refusing AWS account ${identity['Account']}; expected ${this.config.expectedAccount}`)
     }
-    return identity['Account']
+    return { account: identity['Account'], arn: typeof identity['Arn'] === 'string' ? identity['Arn'] : '' }
   }
 
   async login(): Promise<string> {

@@ -1,3 +1,4 @@
+import { AGENT_HOST_NAME, type AgentHost, AgentHostClient, type AgentHostStatus } from './agent-host.ts'
 import { loginConfiguredAuth } from './auth.ts'
 import { AwsClient, type ControllerStatus } from './aws.ts'
 import { renderCompletion } from './completion.ts'
@@ -5,10 +6,12 @@ import { type Environment, type Invocation, parseInvocation } from './config.ts'
 import { TechneError } from './errors.ts'
 import type { CommandRunner } from './process.ts'
 import type { TechneRuntime } from './runtime.ts'
+import { TailscaleClient } from './tailscale.ts'
 
 export interface CliIo {
   stdout(value: string): void
   stderr(value: string): void
+  readLine(prompt: string): Promise<string | null>
 }
 
 export interface CliDependencies {
@@ -34,6 +37,11 @@ Usage:
   techne [global options] auth login
   techne [global options] controller status
   techne [global options] controller bootstrap
+  techne [global options] host status
+  techne [global options] host start [--dry-run]
+  techne [global options] host stop [--dry-run]
+  techne [global options] host teardown [--dry-run]
+  techne [global options] host connect [--dry-run] [path]
   techne completion <bash|zsh>
   techne help [command]
 
@@ -42,8 +50,10 @@ Global options:
   --region <region>           AWS region
   --account <id>              expected AWS account
   --controller-stack <name>   controller CloudFormation stack
+  --host-profile <name>       AWS profile for the agent host operator role
   --json                      machine-readable output where supported
   --full                      include local paths and identifiers in diag
+  --dry-run                   print host changes without making them
   -h, --help                  show help
   -V, --version               show version
 `
@@ -56,10 +66,22 @@ const HELP_TOPICS: Readonly<Record<string, string>> = {
   'controller status': 'Usage: techne [global options] controller status\nInspect the configured controller stack.\n',
   'controller bootstrap':
     'Usage: techne [global options] controller bootstrap\nOpen a private interactive bootstrap session.\n',
+  'host status':
+    'Usage: techne [global options] host status\nReport the one agent host tagged ki-agent-host-id=agent-host, read-only.\n',
+  'host start':
+    'Usage: techne [global options] host start [--dry-run]\nStart a stopped agent host and wait until it runs.\n',
+  'host stop': 'Usage: techne [global options] host stop [--dry-run]\nStop a running agent host: the kill switch.\n',
+  'host teardown':
+    'Usage: techne [global options] host teardown [--dry-run]\nTerminate the agent host after you type its instance ID; this cannot be undone.\n',
+  'host connect':
+    'Usage: techne [global options] host connect [--dry-run] [path]\nCheck Tailscale reaches the agent host, then open path (default ~) in Zed over SSH.\n',
   completion: 'Usage: techne completion <bash|zsh>\nPrint shell completion source.\n'
 }
 
+const HOST_CHANGES = new Set(['host start', 'host stop', 'host teardown', 'host connect'])
+
 function commandName(invocation: Invocation): string {
+  if (invocation.command[0] === 'host' && invocation.command[1] === 'connect') return 'host connect'
   return invocation.command.join(' ')
 }
 
@@ -281,6 +303,119 @@ async function controllerBootstrap(invocation: Invocation, dependencies: CliDepe
   return 0
 }
 
+function rejectJson(invocation: Invocation, name: string): void {
+  if (invocation.json) throw new TechneError(`--json is not supported for ${name}`, 2)
+}
+
+async function requireHost(client: AgentHostClient, invocation: Invocation, io: CliIo): Promise<AgentHost> {
+  await client.verifyOperator()
+  const host = await client.find()
+  if (host === null) {
+    throw new TechneError(`no agent host tagged ki-agent-host-id=agent-host in ${invocation.config.region}`)
+  }
+  io.stdout(`agent host: ${host.instanceId} (${host.state})\n`)
+  return host
+}
+
+function printHostStatus(status: AgentHostStatus, invocation: Invocation, io: CliIo): void {
+  if (invocation.json) {
+    io.stdout(`${JSON.stringify({ schema: 'techne/host-status/v1', ...status })}\n`)
+    return
+  }
+  io.stdout(`agent host: ${status.instanceId ?? 'absent'}\n`)
+  io.stdout(`state: ${status.state}\n`)
+  io.stdout(`selector: ${status.selector}\n`)
+  io.stdout(`region: ${status.region}\n`)
+}
+
+async function hostStatus(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  const status = await new AgentHostClient(dependencies.runner, invocation.config).status()
+  printHostStatus(status, invocation, dependencies.io)
+  return 0
+}
+
+async function hostStart(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  rejectJson(invocation, 'host start')
+  const client = new AgentHostClient(dependencies.runner, invocation.config)
+  const host = await requireHost(client, invocation, dependencies.io)
+  if (host.state === 'running') {
+    dependencies.io.stdout('already running; nothing to do\n')
+    return 0
+  }
+  if (host.state !== 'stopped') {
+    throw new TechneError(`agent host is ${host.state}; try again shortly`)
+  }
+  if (invocation.dryRun) {
+    dependencies.io.stdout(`dry run: would start ${host.instanceId} and wait until it runs\n`)
+    return 0
+  }
+  await client.start(host.instanceId)
+  dependencies.io.stdout(`started ${host.instanceId}\n`)
+  return 0
+}
+
+async function hostStop(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  rejectJson(invocation, 'host stop')
+  const client = new AgentHostClient(dependencies.runner, invocation.config)
+  const host = await requireHost(client, invocation, dependencies.io)
+  if (host.state === 'stopped' || host.state === 'stopping') {
+    dependencies.io.stdout(`already ${host.state}; nothing to do\n`)
+    return 0
+  }
+  if (invocation.dryRun) {
+    dependencies.io.stdout(`dry run: would stop ${host.instanceId}\n`)
+    return 0
+  }
+  await client.stop(host.instanceId)
+  dependencies.io.stdout(`stopping ${host.instanceId}\n`)
+  return 0
+}
+
+async function hostTeardown(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  rejectJson(invocation, 'host teardown')
+  if (!invocation.dryRun && !dependencies.interactive) {
+    throw new TechneError('host teardown requires an interactive terminal', 2)
+  }
+  const client = new AgentHostClient(dependencies.runner, invocation.config)
+  const host = await requireHost(client, invocation, dependencies.io)
+  dependencies.io.stdout(`will TERMINATE ${host.instanceId}; this cannot be undone\n`)
+  if (invocation.dryRun) {
+    dependencies.io.stdout(`dry run: would terminate ${host.instanceId}\n`)
+    return 0
+  }
+  const typed = await dependencies.io.readLine('type the instance ID to confirm: ')
+  if (typed?.trim() !== host.instanceId) {
+    throw new TechneError('confirmation did not match; nothing done')
+  }
+  await client.terminate(host.instanceId)
+  dependencies.io.stdout(`terminated ${host.instanceId}\n`)
+  dependencies.io.stdout(
+    'teardown still needs: the security group, /ki/techne/agent-host/* parameters, the Tailscale device,\n' +
+      'the ki-techne-agent-host-operator IAM role and the AWS profile\n'
+  )
+  return 0
+}
+
+async function hostConnect(invocation: Invocation, dependencies: CliDependencies): Promise<number> {
+  rejectJson(invocation, 'host connect')
+  if (invocation.command.length > 3) {
+    throw new TechneError('host connect accepts at most one path', 2)
+  }
+  const path = invocation.command[2] ?? '~'
+  await new TailscaleClient(dependencies.runner).ensureReachable(AGENT_HOST_NAME)
+  const target = `ssh://${AGENT_HOST_NAME}/${path.replace(/^\//, '')}`
+  if (invocation.dryRun) {
+    dependencies.io.stdout(`dry run: would open ${target} in Zed\n`)
+    return 0
+  }
+  const result = await dependencies.runner.run('zed', [target])
+  if (result.exitCode !== 0) {
+    throw new TechneError(`Zed could not open ${target}`)
+  }
+  dependencies.io.stdout(`opened ${target} in Zed\n`)
+  return 0
+}
+
 const COMMAND_HANDLERS: Readonly<
   Record<string, (invocation: Invocation, dependencies: CliDependencies) => Promise<number> | number>
 > = {
@@ -289,6 +424,11 @@ const COMMAND_HANDLERS: Readonly<
   'auth login': authLogin,
   'controller status': controllerStatus,
   'controller bootstrap': controllerBootstrap,
+  'host status': hostStatus,
+  'host start': hostStart,
+  'host stop': hostStop,
+  'host teardown': hostTeardown,
+  'host connect': hostConnect,
   'completion bash': (_invocation, dependencies) => {
     dependencies.io.stdout(renderCompletion('bash'))
     return 0
@@ -308,6 +448,9 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
     }
     if (invocation.full && invocation.command[0] !== 'diag') {
       throw new TechneError('--full is only supported for diag', 2)
+    }
+    if (invocation.dryRun && !HOST_CHANGES.has(name)) {
+      throw new TechneError('--dry-run is only supported for host start, stop, teardown and connect', 2)
     }
     if (invocation.command[0] === 'help') {
       const topic = invocation.command.slice(1).join(' ')

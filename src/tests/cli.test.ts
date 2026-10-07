@@ -61,15 +61,33 @@ function stack(instanceId: string | null = INSTANCE): CommandResult {
   return response(JSON.stringify({ Stacks: [{ StackStatus: 'CREATE_COMPLETE', Outputs }] }))
 }
 
+function operator(role = 'ki-techne-agent-host-operator', account = ACCOUNT): CommandResult {
+  return response(JSON.stringify({ Account: account, Arn: `arn:aws:sts::${account}:assumed-role/${role}/kris` }))
+}
+
+function hosts(...rows: [string, string][]): CommandResult {
+  return response(JSON.stringify(rows))
+}
+
+function ec2Operations(runner: FakeRunner): string[] {
+  return runner.calls.filter((call) => call.args[0] === 'ec2').map((call) => call.args[1] as string)
+}
+
 function harness(
   runner: CommandRunner,
   environment: Record<string, string | undefined> = {},
   runtime: TechneRuntime = LOCAL_RUNTIME,
-  interactive = true
+  interactive = true,
+  answers: (string | null)[] = []
 ) {
   let stdout = ''
   let stderr = ''
+  const prompts: string[] = []
   const io: CliIo = {
+    readLine: async (prompt) => {
+      prompts.push(prompt)
+      return answers.shift() ?? null
+    },
     stdout: (value) => {
       stdout += value
     },
@@ -79,7 +97,8 @@ function harness(
   }
   return {
     run: (argv: readonly string[]) => runCli(argv, { runner, environment, runtime, io, interactive }),
-    output: () => ({ stdout, stderr })
+    output: () => ({ stdout, stderr }),
+    prompts
   }
 }
 
@@ -285,7 +304,7 @@ describe('techne CLI', () => {
         'bash',
         [
           '-c',
-          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]; COMP_WORDS=(techne help controller bo); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == bootstrap ]]`,
+          `source "$1"; complete -p techne; COMP_WORDS=(techne --region local auth lo); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == login ]]; COMP_WORDS=(techne help controller bo); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == bootstrap ]]; COMP_WORDS=(techne --host-profile p host te); COMP_CWORD=4; _techne; [[ "${dollar}{COMPREPLY[*]}" == teardown ]]; COMP_WORDS=(techne host stop --dr); COMP_CWORD=3; _techne; [[ "${dollar}{COMPREPLY[*]}" == --dry-run ]]`,
           '_',
           definition
         ],
@@ -635,6 +654,244 @@ describe('techne CLI', () => {
 
     expect(await cli.run(['controller', 'bootstrap', '--json'])).toBe(2)
     expect(runner.calls).toHaveLength(0)
+  })
+
+  test('reports the one tagged agent host under the operator role', async () => {
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
+    const cli = harness(runner)
+
+    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout)).toEqual({
+      schema: 'techne/host-status/v1',
+      exists: true,
+      instanceId: INSTANCE,
+      state: 'running',
+      region: 'eu-west-1',
+      selector: 'ki-agent-host-id=agent-host'
+    })
+    expect(cli.output().stdout).not.toContain(ACCOUNT)
+    expect(runner.calls[0]?.args).toEqual([
+      'sts',
+      'get-caller-identity',
+      '--profile',
+      'knowledge-islands-techne-agent-host',
+      '--output',
+      'json'
+    ])
+    expect(runner.calls[1]?.args).toEqual([
+      'ec2',
+      'describe-instances',
+      '--filters',
+      'Name=tag:ki-agent-host-id,Values=agent-host',
+      'Name=instance-state-name,Values=pending,running,stopping,stopped',
+      '--query',
+      'Reservations[].Instances[].[InstanceId,State.Name]',
+      '--output',
+      'json',
+      '--profile',
+      'knowledge-islands-techne-agent-host',
+      '--region',
+      'eu-west-1'
+    ])
+  })
+
+  test('renders an absent agent host in human output', async () => {
+    const cli = harness(new FakeRunner([operator(), hosts()]))
+
+    expect(await cli.run(['host', 'status'])).toBe(0)
+    expect(cli.output().stdout).toBe(
+      'agent host: absent\nstate: absent\nselector: ki-agent-host-id=agent-host\nregion: eu-west-1\n'
+    )
+  })
+
+  test('selects the host profile by flag over environment', async () => {
+    const runner = new FakeRunner([operator(), hosts()])
+    const cli = harness(runner, { TECHNE_HOST_PROFILE: 'environment-host', AWS_PROFILE: 'controller' })
+
+    expect(await cli.run(['host', 'status', '--host-profile', 'flag-host'])).toBe(0)
+    expect(runner.calls.every((call) => call.args.includes('flag-host'))).toBe(true)
+
+    const environment = new FakeRunner([operator(), hosts()])
+    expect(await harness(environment, { TECHNE_HOST_PROFILE: 'environment-host' }).run(['host', 'status'])).toBe(0)
+    expect(environment.calls.every((call) => call.args.includes('environment-host'))).toBe(true)
+  })
+
+  test('refuses credentials that are not the operator role before any EC2 call', async () => {
+    for (const identityResponse of [operator('AWSAdministratorAccess'), operator(undefined, '999999999999')]) {
+      const runner = new FakeRunner([identityResponse])
+      const cli = harness(runner)
+
+      for (const command of ['status', 'start', 'stop', 'teardown']) {
+        expect(await cli.run(['host', command])).toBe(1)
+      }
+      expect(cli.output().stderr).toMatch(/refusing (credentials|AWS account)/)
+      expect(ec2Operations(runner)).toEqual([])
+    }
+  })
+
+  test('refuses several tagged instances and a missing host', async () => {
+    const several = new FakeRunner([operator(), hosts([INSTANCE, 'running'], ['i-0fedcba9876543210', 'stopped'])])
+    const cli = harness(several)
+    expect(await cli.run(['host', 'stop'])).toBe(1)
+    expect(cli.output().stderr).toContain(`more than one instance tagged ki-agent-host-id=agent-host: ${INSTANCE}, i-`)
+    expect(ec2Operations(several)).toEqual(['describe-instances'])
+
+    const missing = harness(new FakeRunner([operator(), hosts()]))
+    expect(await missing.run(['host', 'start'])).toBe(1)
+    expect(missing.output().stderr).toContain('no agent host tagged ki-agent-host-id=agent-host in eu-west-1')
+  })
+
+  test('starts only a stopped host and waits until it runs', async () => {
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
+    const cli = harness(runner)
+    expect(await cli.run(['host', 'start'])).toBe(0)
+    expect(ec2Operations(runner)).toEqual(['describe-instances', 'start-instances', 'wait'])
+    expect(runner.calls.at(-1)?.args.slice(0, 5)).toEqual([
+      'ec2',
+      'wait',
+      'instance-running',
+      '--instance-ids',
+      INSTANCE
+    ])
+    expect(cli.output().stdout).toContain(`started ${INSTANCE}`)
+
+    const running = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
+    const noop = harness(running)
+    expect(await noop.run(['host', 'start'])).toBe(0)
+    expect(noop.output().stdout).toContain('already running; nothing to do')
+    expect(ec2Operations(running)).toEqual(['describe-instances'])
+
+    const stopping = harness(new FakeRunner([operator(), hosts([INSTANCE, 'stopping'])]))
+    expect(await stopping.run(['host', 'start'])).toBe(1)
+    expect(stopping.output().stderr).toContain('agent host is stopping; try again shortly')
+
+    const dry = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
+    const dryCli = harness(dry)
+    expect(await dryCli.run(['host', 'start', '--dry-run'])).toBe(0)
+    expect(dryCli.output().stdout).toContain(`dry run: would start ${INSTANCE}`)
+    expect(ec2Operations(dry)).toEqual(['describe-instances'])
+  })
+
+  test('stops only a running host', async () => {
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
+    const cli = harness(runner)
+    expect(await cli.run(['host', 'stop'])).toBe(0)
+    expect(ec2Operations(runner)).toEqual(['describe-instances', 'stop-instances'])
+    expect(cli.output().stdout).toContain(`stopping ${INSTANCE}`)
+
+    for (const state of ['stopped', 'stopping']) {
+      const idle = new FakeRunner([operator(), hosts([INSTANCE, state])])
+      const idleCli = harness(idle)
+      expect(await idleCli.run(['host', 'stop'])).toBe(0)
+      expect(idleCli.output().stdout).toContain(`already ${state}; nothing to do`)
+      expect(ec2Operations(idle)).toEqual(['describe-instances'])
+    }
+
+    const dry = new FakeRunner([operator(), hosts([INSTANCE, 'pending'])])
+    const dryCli = harness(dry)
+    expect(await dryCli.run(['host', 'stop', '--dry-run'])).toBe(0)
+    expect(dryCli.output().stdout).toContain(`dry run: would stop ${INSTANCE}`)
+    expect(ec2Operations(dry)).toEqual(['describe-instances'])
+  })
+
+  test('terminates the host only after the exact instance ID is typed', async () => {
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
+    const cli = harness(runner, {}, LOCAL_RUNTIME, true, [` ${INSTANCE} `])
+    expect(await cli.run(['host', 'teardown'])).toBe(0)
+    expect(cli.prompts).toEqual(['type the instance ID to confirm: '])
+    expect(ec2Operations(runner)).toEqual(['describe-instances', 'terminate-instances'])
+    expect(cli.output().stdout).toContain('this cannot be undone')
+    expect(cli.output().stdout).toContain('teardown still needs: the security group')
+
+    for (const answer of ['i-0fedcba9876543210', null]) {
+      const refused = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
+      const refusedCli = harness(refused, {}, LOCAL_RUNTIME, true, [answer])
+      expect(await refusedCli.run(['host', 'teardown'])).toBe(1)
+      expect(refusedCli.output().stderr).toContain('confirmation did not match; nothing done')
+      expect(ec2Operations(refused)).toEqual(['describe-instances'])
+    }
+  })
+
+  test('refuses teardown outside an interactive terminal but allows a dry run', async () => {
+    const runner = new FakeRunner([])
+    const cli = harness(runner, {}, LOCAL_RUNTIME, false)
+    expect(await cli.run(['host', 'teardown'])).toBe(2)
+    expect(cli.output().stderr).toContain('host teardown requires an interactive terminal')
+    expect(runner.calls).toHaveLength(0)
+
+    const dry = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
+    const dryCli = harness(dry, {}, LOCAL_RUNTIME, false)
+    expect(await dryCli.run(['host', 'teardown', '--dry-run'])).toBe(0)
+    expect(dryCli.output().stdout).toContain(`dry run: would terminate ${INSTANCE}`)
+    expect(dryCli.prompts).toEqual([])
+    expect(ec2Operations(dry)).toEqual(['describe-instances'])
+  })
+
+  test('connects through Tailscale and Zed without calling AWS', async () => {
+    const runner = new FakeRunner([response(), response(), response()])
+    const cli = harness(runner)
+    expect(await cli.run(['host', 'connect', '/workspaces/kit'])).toBe(0)
+    expect(runner.calls.map((call) => [call.command, ...call.args])).toEqual([
+      ['tailscale', 'status'],
+      ['tailscale', 'ping', '-c', '1', '--timeout=10s', 'ki-techne-agent-host'],
+      ['zed', 'ssh://ki-techne-agent-host/workspaces/kit']
+    ])
+
+    const dry = new FakeRunner([response(), response()])
+    const dryCli = harness(dry)
+    expect(await dryCli.run(['host', 'connect', '--dry-run'])).toBe(0)
+    expect(dryCli.output().stdout).toBe('dry run: would open ssh://ki-techne-agent-host/~ in Zed\n')
+    expect(dry.calls.map((call) => call.command)).toEqual(['tailscale', 'tailscale'])
+  })
+
+  test('refuses to connect when Tailscale or the editor fails', async () => {
+    const down = harness(new FakeRunner([response('', 'stopped', 1)]))
+    expect(await down.run(['host', 'connect'])).toBe(1)
+    expect(down.output().stderr).toContain('Tailscale is not up')
+
+    const silent = new FakeRunner([response(), response('', 'timeout', 1)])
+    const silentCli = harness(silent)
+    expect(await silentCli.run(['host', 'connect'])).toBe(1)
+    expect(silentCli.output().stderr).toContain('ki-techne-agent-host does not answer over Tailscale')
+    expect(silent.calls).toHaveLength(2)
+
+    const editor = harness(new FakeRunner([response(), response(), response('', '', 127)]))
+    expect(await editor.run(['host', 'connect'])).toBe(1)
+    expect(editor.output().stderr).toContain('Zed could not open ssh://ki-techne-agent-host/~')
+
+    const extra = new FakeRunner([])
+    const extraCli = harness(extra)
+    expect(await extraCli.run(['host', 'connect', 'one', 'two'])).toBe(2)
+    expect(extraCli.output().stderr).toContain('host connect accepts at most one path')
+    expect(extra.calls).toHaveLength(0)
+  })
+
+  test('limits dry runs and JSON to the host commands that support them', async () => {
+    const runner = new FakeRunner([])
+    const cli = harness(runner)
+    for (const args of [
+      ['host', 'status', '--dry-run'],
+      ['controller', 'status', '--dry-run'],
+      ['diag', '--dry-run']
+    ]) {
+      expect(await cli.run(args)).toBe(2)
+    }
+    expect(cli.output().stderr).toContain('--dry-run is only supported for host start, stop, teardown and connect')
+    for (const command of ['start', 'stop', 'teardown', 'connect']) {
+      expect(await cli.run(['host', command, '--json'])).toBe(2)
+      expect(cli.output().stderr).toContain(`--json is not supported for host ${command}`)
+    }
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  test('explains every host command', async () => {
+    const cli = harness(new FakeRunner([]))
+    expect(await cli.run(['--help'])).toBe(0)
+    expect(cli.output().stdout).toContain('host connect [--dry-run] [path]')
+    for (const command of ['status', 'start', 'stop', 'teardown', 'connect']) {
+      expect(await cli.run(['help', 'host', command])).toBe(0)
+      expect(cli.output().stdout).toContain(`host ${command}`)
+    }
   })
 
   test('reports unexpected runner failures', async () => {

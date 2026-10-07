@@ -5,6 +5,7 @@ export interface TechneConfig {
   region: string
   expectedAccount: string
   controllerStack: string
+  hostProfile: string
 }
 
 export interface Invocation {
@@ -12,6 +13,7 @@ export interface Invocation {
   config: TechneConfig
   json: boolean
   full: boolean
+  dryRun: boolean
   help: boolean
   version: boolean
 }
@@ -22,7 +24,8 @@ const DEFAULTS: TechneConfig = {
   profile: 'knowledge-islands-techne',
   region: 'eu-west-1',
   expectedAccount: '655383751458',
-  controllerStack: 'ki-techne-ops-007-controller'
+  controllerStack: 'ki-techne-ops-007-controller',
+  hostProfile: 'knowledge-islands-techne-agent-host'
 }
 
 type ConfigKey = keyof TechneConfig
@@ -31,7 +34,8 @@ const VALUE_FLAGS: Readonly<Record<string, ConfigKey>> = {
   '--profile': 'profile',
   '--region': 'region',
   '--account': 'expectedAccount',
-  '--controller-stack': 'controllerStack'
+  '--controller-stack': 'controllerStack',
+  '--host-profile': 'hostProfile'
 }
 
 function environmentConfig(environment: Environment): TechneConfig {
@@ -39,7 +43,8 @@ function environmentConfig(environment: Environment): TechneConfig {
     profile: environment['AWS_PROFILE'] ?? DEFAULTS.profile,
     region: environment['AWS_REGION'] ?? DEFAULTS.region,
     expectedAccount: environment['EXPECTED_AWS_ACCOUNT'] ?? DEFAULTS.expectedAccount,
-    controllerStack: environment['CONTROLLER_STACK_NAME'] ?? DEFAULTS.controllerStack
+    controllerStack: environment['CONTROLLER_STACK_NAME'] ?? DEFAULTS.controllerStack,
+    hostProfile: environment['TECHNE_HOST_PROFILE'] ?? DEFAULTS.hostProfile
   }
 }
 
@@ -48,6 +53,7 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
   const command: string[] = []
   let json = false
   let full = false
+  let dryRun = false
   let help = false
   let version = false
 
@@ -59,6 +65,10 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
     }
     if (argument === '--full') {
       full = true
+      continue
+    }
+    if (argument === '--dry-run') {
+      dryRun = true
       continue
     }
     if (argument === '--help' || argument === '-h') {
@@ -85,5 +95,5 @@ export function parseInvocation(argv: readonly string[], environment: Environmen
     command.push(argument)
   }
 
-  return { command, config, json, full, help, version }
+  return { command, config, json, full, dryRun, help, version }
 }

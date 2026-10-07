@@ -7,7 +7,8 @@ const CONFIG: TechneConfig = {
   profile: 'profile',
   region: 'region',
   expectedAccount: '123456789012',
-  controllerStack: 'controller'
+  controllerStack: 'controller',
+  hostProfile: 'host-profile'
 }
 
 function result(stdout = '', stderr = '', exitCode = 0): CommandResult {

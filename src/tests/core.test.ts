@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest'
+import { AgentHostClient } from '../agent-host.ts'
 import { AwsClient } from '../aws.ts'
 import { parseInvocation, type TechneConfig } from '../config.ts'
 import { TechneError } from '../errors.ts'
@@ -10,7 +11,8 @@ const CONFIG: TechneConfig = {
   profile: 'profile',
   region: 'region',
   expectedAccount: '123456789012',
-  controllerStack: 'controller'
+  controllerStack: 'controller',
+  hostProfile: 'host-profile'
 }
 
 function result(stdout = '', stderr = '', exitCode = 0): CommandResult {
@@ -169,6 +171,34 @@ describe('AWS client', () => {
 
   test('reports an interactive bootstrap failure', async () => {
     await expect(aws(result('', '', 1)).startBootstrap('i-123')).rejects.toThrow('interactive controller bootstrap')
+  })
+})
+
+function host(...responses: CommandResult[]): AgentHostClient {
+  return new AgentHostClient(new QueueRunner(responses), CONFIG)
+}
+
+describe('agent host client', () => {
+  test('refuses an identity without an operator role ARN', async () => {
+    await expect(host(identity()).verifyOperator()).rejects.toThrow('refusing credentials')
+  })
+
+  test('rejects failed and malformed instance lookups', async () => {
+    await expect(host(result('', 'denied', 1)).find()).rejects.toThrow('agent host lookup failed: denied')
+    await expect(host(result('{')).find()).rejects.toThrow('agent host lookup response is invalid')
+    await expect(host(result('{}')).find()).rejects.toThrow('agent host lookup response is not a list')
+    for (const row of [null, ['i-1'], ['x-1', 'running'], [1, 'running'], ['i-1', 2]]) {
+      await expect(host(result(JSON.stringify([row]))).find()).rejects.toThrow('unexpected instance')
+    }
+  })
+
+  test('reports failed instance changes', async () => {
+    await expect(host(result('', 'denied', 1)).start('i-1')).rejects.toThrow('agent host start failed: denied')
+    await expect(host(result(), result('', 'timed out', 255)).start('i-1')).rejects.toThrow(
+      'agent host did not reach running: timed out'
+    )
+    await expect(host(result('', '', 1)).stop('i-1')).rejects.toThrow('agent host stop failed')
+    await expect(host(result('', '', 1)).terminate('i-1')).rejects.toThrow('agent host teardown failed')
   })
 })
 
