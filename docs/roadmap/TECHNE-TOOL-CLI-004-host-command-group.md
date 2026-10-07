@@ -4,12 +4,12 @@ area: CLI
 title: Add host command group
 theme: cli
 horizon: now
-status: awaiting-review
+status: done
 blocks: []
 blocked_by: []
 baseline_ref: 420e671e6a99375a8898d489f4fbf31db2a0d199
 created_at: 2026-10-07T06:35:19Z
-updated_at: 2026-10-07T11:28:22Z
+updated_at: 2026-10-07T11:31:40Z
 ---
 
 # Add host command group
@@ -156,6 +156,10 @@ The goal is met for the single host: with the chezmoi helper's behaviour already
 
 CLI-004 is complete pending Kris's live checks: `techne host` covers status, setup, start, stop, connect and teardown, wrapping the harness scripts from a local checkout. Proposed learning route: none beyond this record; the helper retirement is DOTFILES-UE-068's, and the binding reconciliation is GOV-025's.
 
+## Done
+
+Accepted 2026-10-07 by Kris Brown on the review packet above.
+
 ## Discussion
 
 ### Sequencing
@@ -242,3 +246,7 @@ Kris reported that `techne host --help`, `techne controller --help` and a bare `
 The reference is the shared CLI contract in the `ki-repo-tools` tool-repository standard: `--help` succeeds, statuses are 0, 1 and 2, owned syntax errors read `<tool>: error: ...` with usage on stderr and take precedence over `--help`, and `help [command]` sits at the root. `tools-ki` and `tools-mgit` are its named reference implementations; where they differ on group details, `techne` takes the form that also meets the standard's error-line rule.
 
 Drift in the other tools, reported and not changed here: `git-almanac help <unknown>` prints root help with status 0 and `git-almanac completion --help` is a usage error; `rig` with no command exits 2; `ki help <unknown>` omits usage and a bare `ki` group omits the error line. The blank line between the error and the usage also varies (`ki` and `git-almanac` have one, `mgit` and `rig` do not); `techne` keeps none.
+
+### Acceptance - 2026-10-07
+
+Kris ran the live checks on the agent host and reported "Works", then accepted the record once the help fix landed ("CLI-004 is accepted once help fix lands"). The help fix landed in `610aa21` and is recorded in `3b1e249`; every definition-of-done gate and `ki repo audit --repo .` passed again before closure. Several host bindings, recipes and provider options, and reconciling `--host-profile` with `--host <binding>`, are not part of this record: they are planned under KI-ARCADIA-GOV-025 in `ki-arcadia-principal`.
