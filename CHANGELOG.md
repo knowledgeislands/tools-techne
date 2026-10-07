@@ -17,6 +17,10 @@ All notable changes to `techne` are recorded here.
 - Host selection by `--host`, `TECHNE_HOST`, `default_host` or the only binding.
 - Recipe-driven AWS selectors, script environment and teardown footprint, through a provider adapter contract.
 
+### Fixed
+
+- The Tailscale reachability check accepts a host that answers only through a DERP relay, so `host setup` and `host connect` no longer refuse a freshly rebuilt host before a direct path exists.
+
 ## Pre-1.0 baseline
 
 This is the consolidated 0.x command and capability baseline. Tags and GitHub releases retain each exact preview snapshot.

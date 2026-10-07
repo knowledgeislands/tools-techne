@@ -1700,7 +1700,11 @@ describe('host commands', () => {
     expect(await cli.run(['host', 'setup', '--host', 'agent-host', '--pull'])).toBe(0)
     expect(runner.calls).toEqual([
       { command: 'tailscale', args: ['status'], mode: 'capture' },
-      { command: 'tailscale', args: ['ping', '-c', '1', '--timeout=10s', 'ki-techne-agent-host'], mode: 'capture' },
+      {
+        command: 'tailscale',
+        args: ['ping', '-c', '1', '--timeout=10s', '--until-direct=false', 'ki-techne-agent-host'],
+        mode: 'capture'
+      },
       {
         command: 'bash',
         args: [script, '--pull'],
@@ -1991,7 +1995,7 @@ describe('host commands', () => {
     expect(await cli.run(['host', 'connect', '/workspaces/kit'])).toBe(0)
     expect(runner.calls.map((call) => [call.command, ...call.args])).toEqual([
       ['tailscale', 'status'],
-      ['tailscale', 'ping', '-c', '1', '--timeout=10s', 'ki-techne-agent-host'],
+      ['tailscale', 'ping', '-c', '1', '--timeout=10s', '--until-direct=false', 'ki-techne-agent-host'],
       ['zed', 'ssh://ki-techne-agent-host/workspaces/kit']
     ])
     expect(cli.output().stdout).toBe('opened ssh://ki-techne-agent-host/workspaces/kit in Zed\n')
@@ -2001,6 +2005,26 @@ describe('host commands', () => {
     expect(await dryCli.run(['host', 'connect', '--host', 'lab', '--dry-run'])).toBe(0)
     expect(dryCli.output().stdout).toBe('dry run: would open ssh://ki-techne-lab/~ in Zed\n')
     expect(dry.calls.map((call) => call.command)).toEqual(['tailscale', 'tailscale'])
+  })
+
+  test('accepts a host that answers only through a DERP relay', async () => {
+    // Models `tailscale ping`: a relayed pong exits 1 ("direct connection not established")
+    // unless --until-direct=false, as seen against a freshly rebuilt host.
+    class RelayedTailscale implements CommandRunner {
+      async run(command: string, args: readonly string[]): Promise<CommandResult> {
+        const relayedOnly = command === 'tailscale' && args[0] === 'ping' && !args.includes('--until-direct=false')
+        return relayedOnly
+          ? {
+              exitCode: 1,
+              stdout: 'pong from ki-techne-agent-host via DERP(lhr) in 26ms\n',
+              stderr: 'direct connection not established\n'
+            }
+          : { exitCode: 0, stdout: '', stderr: '' }
+      }
+    }
+    const cli = harness(new RelayedTailscale(), fixture().environment)
+    expect(await cli.run(['host', 'connect'])).toBe(0)
+    expect(cli.output().stdout).toBe('opened ssh://ki-techne-agent-host/~ in Zed\n')
   })
 
   test('refuses to connect when Tailscale or the editor fails', async () => {
