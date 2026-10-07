@@ -67,10 +67,17 @@ organisation_code = "KIS"
 adapter = "roadmap"
 
 [skills.ki-work-roadmap]
-themes = ["cli"]
-
-[skills.ki-work-roadmap.areas]
-CLI = "cli"
+areas = ["CLI"]
+# Mirrors the techne command groups.
+components = [
+  "auth",
+  "completion",
+  "controller",
+  "diag",
+  "doctor",
+  "host",
+  "recipe",
+]
 
 # -----------------------------------------------------------------------------
 # Relationships
