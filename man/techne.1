@@ -18,7 +18,7 @@ Print a completion definition for the selected shell.
 is the operator command-line interface for the Techne controller
 execution fabric.
 It keeps provider credentials out of command arguments and enforces the
-configured AWS account boundary before controller operations.
+configured AWS account boundary before controller and agent host operations.
 .SH COMMANDS
 \&
 .TP
@@ -64,6 +64,37 @@ Open a private interactive Session Manager bootstrap session on the
 controller.
 JSON output is not supported for this interactive command.
 .TP
+.B host status
+Report the one non-terminated agent host instance tagged
+.BR ki-agent-host-id=agent-host ,
+its state and region, without changing it.
+.TP
+.B host start
+Start a stopped agent host and wait until it runs.
+.TP
+.B host stop
+Stop a running agent host.
+.TP
+.B host teardown
+Terminate the agent host after the instance identifier is typed at an
+interactive prompt. This cannot be undone.
+.TP
+.B host connect [path]
+Check that Tailscale reaches the agent host, then open
+.I path
+(default home) in Zed over SSH. Makes no AWS call.
+.PP
+Host commands use the agent-host profile, refuse credentials that are not the
+agent-host operator role in the expected account, and refuse unless exactly one
+tagged instance exists.
+.BR start ,
+.BR stop ,
+.B teardown
+and
+.B connect
+accept
+.BR --dry-run .
+.TP
 .B completion bash|zsh
 Print a sourceable Bash or Zsh completion definition to standard output.
 The installer does not alter shell startup files or completion directories.
@@ -96,6 +127,12 @@ Set the expected AWS account identifier.
 .BI "--controller-stack " name
 Select the controller CloudFormation stack.
 .TP
+.BI "--host-profile " name
+Select the AWS profile for the agent host operator role.
+.TP
+.B --dry-run
+Print host changes without making them.
+.TP
 .B --json
 Request machine-readable output where supported.
 .TP
@@ -121,6 +158,9 @@ AWS account safety boundary.
 .TP
 .B CONTROLLER_STACK_NAME
 Default controller stack name.
+.TP
+.B TECHNE_HOST_PROFILE
+Default agent host profile.
 .SH EXIT STATUS
 \&
 .PP

@@ -14,6 +14,7 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 - `techne auth login`
 - `techne controller status`
 - `techne controller bootstrap`
+- `techne host status|start|stop|teardown` and `techne host connect [path]`
 - `techne completion <bash|zsh>`
 
 ### Capabilities
@@ -23,6 +24,7 @@ This is the consolidated 0.x command and capability baseline. Tags and GitHub re
 - Align diagnostics and doctor context across tools: tool/version, checkout-verified local/release/unknown installation mode, executing platform/architecture, runtime/version, and configuration presence. Copied or unidentified source is unknown rather than guessed local. Doctor reports read-only scope, actionable findings, verdict, and pass/warn/fail/skipped counts; unavailable AWS identity checks are explicit and numeric identities stay private.
 - Add exact-version and latest-release installation, local-link installation, a physical manual and macOS/Linux release archives.
 - Derive the executable version from the package version, keeping source and compiled releases on one version authority.
+- Operate the single agent host with the guards of the chezmoi `techne-agent-host` helper: the `ki-agent-host-id=agent-host` tag selector, refusal unless exactly one instance matches, the operator-role credential check, typed-ID teardown confirmation and `--dry-run` previews.
 - Print Bash and Zsh command and option completions without modifying shell startup files.
 - Mechanically enforce provider-to-CLI and runtime-to-fixture boundaries with a supported isolated parser, resolved-graph checks, and deliberately violating type-only fixtures.
 
