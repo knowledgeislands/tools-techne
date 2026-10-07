@@ -9,7 +9,7 @@ blocks: []
 blocked_by: []
 baseline_ref: 420e671e6a99375a8898d489f4fbf31db2a0d199
 created_at: 2026-10-07T06:35:19Z
-updated_at: 2026-10-07T09:27:00Z
+updated_at: 2026-10-07T11:28:22Z
 ---
 
 # Add host command group
@@ -71,6 +71,7 @@ Live use is limited by the Techne Programme Hold exemption (KI-ARCADIA-GOV-023) 
 - [x] Close the helper comparison: add the missing test that refuses a role whose name only begins with the operator role, and record the comparison in this record.
 - [x] Extend help, the Bash and Zsh completions, the dependency-boundary rule, the tests (100% coverage), `README.md`, the user guide, `man/techne.1` and `CHANGELOG.md`.
 - [x] Run the definition-of-done gates and `ki repo audit --repo .`; leave the live checks to Kris.
+- [x] Approved deviation (Kris, 2026-10-07: "Make it consistent with all our other CLIs"): make `--help`, `-h`, `help [command]`, bare command groups and unknown commands behave as in the other KI CLIs; see "Help convention - 2026-10-07" in the Discussion.
 
 ## Files touched
 
@@ -79,6 +80,7 @@ Live use is limited by the Techne Programme Hold exemption (KI-ARCADIA-GOV-023) 
 - `src/tests/cli.test.ts`, `src/tests/core.test.ts`, `.dependency-cruiser.ts`
 - Later step: `src/harness.ts` (new), `src/cli.ts`, `src/config.ts`, `src/completion.ts`, `src/tests/cli.test.ts`, `src/tests/auth.test.ts`, `.dependency-cruiser.ts`
 - `README.md`, `docs/guides/user/README.md`, `docs/guides/user/agent-host.md` (new), `man/techne.1`, `CHANGELOG.md`
+- Help deviation: `src/cli.ts`, `src/tests/cli.test.ts`, `README.md`, `docs/guides/user/agent-host.md`, `man/techne.1`, `CHANGELOG.md`
 - This record
 
 ## Verify
@@ -87,6 +89,7 @@ Live use is limited by the Techne Programme Hold exemption (KI-ARCADIA-GOV-023) 
 - Tests prove, without AWS or Tailscale: a non-operator role or wrong account is refused before any EC2 call; none or several tagged instances are refused; `stop` and `start` act only in the right states and `--dry-run` makes no mutating call; `teardown` refuses without an interactive terminal, refuses a mismatched typed ID and terminates only on an exact match; `connect` refuses when Tailscale is down or the host does not answer, and `--dry-run` does not launch the editor.
 - Later step, without SSH, AWS or Tailscale: `host setup` refuses a missing checkout or script and an unreachable host before running anything, passes `--pull` through, propagates a failing exit status, and `--dry-run` runs nothing; `host status` carries the `status.sh` report unchanged in text and JSON, skips it when the host is not running, and exits 1 when it fails; `--pull` is refused outside `host setup`.
 - Live, read-only, by Kris: `techne auth login`, then `techne host status` and `techne host status --json` report the one tagged instance and, when it runs, the workspace report; then `techne host setup --dry-run` and `techne host setup`.
+- Help deviation, without any provider call: `--help` and `-h` after every command and group print the same stdout as `help <command>` with status 0; each group lists its commands; a bare group and an unknown command exit 2 with a namespaced error and the group's usage on stderr.
 
 ## Dependencies / blocks
 
@@ -126,12 +129,14 @@ The approved boundary in two slices. First slice (baseline `420e671e6a99375a8898
 - `src/tests/cli.test.ts`: setup with and without `--pull`, dry run, failing script, unreachable host and the three checkout refusals, none of which runs anything; status reported in text and JSON, skipped for stopped and absent hosts, failed on a script error and on a missing checkout; the `--pull` refusal; a Bash completion case; and the helper's missing test, a role whose name only begins with the operator role. `src/tests/auth.test.ts` and `core.test.ts` gain the new configuration field.
 - `README.md`, `docs/guides/user/agent-host.md`, `docs/guides/user/README.md`, `man/techne.1`, `CHANGELOG.md`: the new command, option, environment variable, workspace section and recovery steps.
 - This record: the comparison with the chezmoi helper is under "Helper comparison - 2026-10-07" in the Discussion; it found no gap beyond the one missing test.
+- Approved deviation, help (Kris, 2026-10-07): `src/cli.ts` adds `auth`, `controller`, `host` and `help` help topics; `--help` and `-h` print the selected command's or group's help instead of the root help; `completion --help` prints completion help; a bare group fails with `techne: error: <group> requires a command: ...`; every usage error prints the deepest matching usage instead of a one-line root usage; root help ends with a pointer to command help. Completion needed no change. `README.md`, the agent-host guide, `man/techne.1` and `CHANGELOG.md` describe it; `src/tests/cli.test.ts` covers every command and group (82 tests, 100% coverage).
 - Deviation: the planning commit `9336562` nested the later step's sub-steps, which the roadmap audit rejects (`ITEM-3`); they are flat in this commit.
 
 ### Verification
 
 - `bun install --frozen-lockfile` (root and `tooling/boundaries`), `bun run test` (80 passed), `bun run test:coverage` (100% statements, branches, functions and lines), `bun run self:typecheck`, `bun run build`, `bun run self:release:test`, `bun run ki:tools:lint-man`, `bunx biome check .`, `bunx rumdl check .` and `git diff --check`: all pass.
 - `ki repo audit --repo .`: passes (19 skills) with this record in place; before it, the only failure was `ITEM-3` on this record's nested steps, fixed here.
+- Help deviation: all definition-of-done gates and `ki repo audit --repo .` (PASS, 19 skills) pass again; local smoke of `techne host`, `host --help`, `host -h`, `host status --help`, `controller nosuch`, `help nosuch`, `completion`, `completion --help` and `auth`, with no remote call.
 - Local smoke, with no remote call: `techne help host setup`, a missing `--harness-dir` refused before any subprocess, and `--pull` refused on `host status`.
 - Not run, left to Kris: `techne auth login`, then `techne host status` and `techne host status --json` (instance and workspace report), `techne host setup --dry-run` and `techne host setup`. Delivery made no SSH, AWS, Tailscale or other remote call, as instructed, so the first slice's live read-only status check is also still open.
 
@@ -218,3 +223,22 @@ The helper's teardown terminates the instance and then lists what remains: the s
 ### Open questions
 
 The intake questions on the connect mechanism, where start and stop live, and the `status --json` shape are resolved under "Decisions - 2026-10-07" above.
+
+### Help convention - 2026-10-07
+
+Kris reported that `techne host --help`, `techne controller --help` and a bare `techne host` failed with "unknown command" and asked for consistency with the other KI CLIs. The survey ran only help forms of the installed `ki`, `mgit`, `rig` and `git-almanac`:
+
+| Form | `ki` | `mgit` | `rig` | `git-almanac` | `techne` now |
+| --- | --- | --- | --- | --- | --- |
+| `--help`, `-h`, `help` | root help, stdout, 0 | same | same | same | same |
+| `<command> --help` | equals `help <command>` | same | same | same | same |
+| `<group> --help` | lists the group's commands, 0 | same | no groups | no groups | same |
+| bare `<group>` | group usage on stderr, 2 | error plus group usage on stderr, 2 | no groups | no groups | as `mgit` |
+| unknown subcommand | error plus group usage, 2 | same | error plus usage, 2 | same | error plus group usage, 2 |
+| `help <unknown>` | error without usage, 2 | error plus usage, 2 | same as `mgit` | root help, stdout, 0 | as `mgit` |
+| bare root | root help, 0 | lists checkouts | error, 2 | root help, 0 | root help, 0 |
+| `completion --help` | completion help, 0 | same | same | usage error, 2 | as `ki` |
+
+The reference is the shared CLI contract in the `ki-repo-tools` tool-repository standard: `--help` succeeds, statuses are 0, 1 and 2, owned syntax errors read `<tool>: error: ...` with usage on stderr and take precedence over `--help`, and `help [command]` sits at the root. `tools-ki` and `tools-mgit` are its named reference implementations; where they differ on group details, `techne` takes the form that also meets the standard's error-line rule.
+
+Drift in the other tools, reported and not changed here: `git-almanac help <unknown>` prints root help with status 0 and `git-almanac completion --help` is a usage error; `rig` with no command exits 2; `ki help <unknown>` omits usage and a bare `ki` group omits the error line. The blank line between the error and the usage also varies (`ki` and `git-almanac` have one, `mgit` and `rig` do not); `techne` keeps none.
