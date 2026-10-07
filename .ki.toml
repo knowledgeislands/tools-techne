@@ -1,14 +1,14 @@
 # Knowledge Islands repository configuration.
 # Its presence declares conformance with the Knowledge Islands repository standard.
 
-# =============================================================================
-
 # -----------------------------------------------------------------------------
 # Foundation
 # -----------------------------------------------------------------------------
 
 [repo]
-harnesses = ["knowledgeislands/ki-agentic-harness"]
+harnesses = [
+  "knowledgeislands/ki-agentic-harness",
+]
 
 [skills.ki-repo]
 repo_type = "project"
@@ -18,16 +18,15 @@ title = "tools-techne"
 capital = "https://github.com/knowledgeislands/ki-arcadia-principal"
 description = "Techne operator command-line interface."
 repo_code = "TECHNE-TOOL"
-supported_runtimes = ["claude-code", "claude-desktop", "chatgpt-codex"]
+supported_runtimes = [
+  "claude-code",
+  "claude-desktop",
+  "chatgpt-codex",
+]
 visibility = "public"
 license = "MIT"
 
 [skills.ki-authoring]
-[skills.ki-binding]
-[skills.ki-binding-claude]
-[skills.ki-binding-chatgpt]
-[skills.ki-housekeeping-chatgpt]
-auto_memory = "disabled"
 
 # -----------------------------------------------------------------------------
 # Repository shape
@@ -41,27 +40,36 @@ auto_memory = "disabled"
 # Governance and runtime
 # -----------------------------------------------------------------------------
 
-[skills.ki-guides]
-
 [skills.ki-engineering]
 
-[skills.ki-tokenomics]
+[skills.ki-guides]
+
+[skills.ki-binding]
+
+[skills.ki-binding-claude]
+
+[skills.ki-binding-chatgpt]
 
 [skills.ki-housekeeping-claude]
 auto_memory = "disabled"
+
+[skills.ki-housekeeping-chatgpt]
+auto_memory = "disabled"
+
+[skills.ki-tokenomics]
 
 [skills.ki-tokenomics-claude]
 
 [skills.ki-tokenomics-chatgpt]
 
+# -----------------------------------------------------------------------------
+# Change management
+# -----------------------------------------------------------------------------
+
 [skills.ki-agent-coordination-paperclip]
 organisation_code = "KIS"
 
 [skills.ki-git]
-
-# -----------------------------------------------------------------------------
-# Change management
-# -----------------------------------------------------------------------------
 
 [skills.ki-work]
 adapter = "roadmap"
