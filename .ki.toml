@@ -67,7 +67,6 @@ organisation_code = "KIS"
 adapter = "roadmap"
 
 [skills.ki-work-roadmap]
-areas = ["CLI"]
 # Mirrors the techne command groups.
 components = [
   "auth",
@@ -78,6 +77,9 @@ components = [
   "host",
   "recipe",
 ]
+
+[skills.ki-work-roadmap.areas]
+CLI = "Command-line interface"
 
 # -----------------------------------------------------------------------------
 # Relationships
