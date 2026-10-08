@@ -16,7 +16,7 @@ export interface WorkspaceStatus {
 }
 
 // Runs a recipe's scripts in place from a local ki-techne-harness checkout,
-// which stays their only copy (ADR-TECHNE-003). Binding values reach them only
+// which stays their only copy (ADR-KI-ARCADIA-006). Binding values reach them only
 // through the environment variables the recipe declares.
 export class HarnessCheckout {
   private readonly runner: CommandRunner

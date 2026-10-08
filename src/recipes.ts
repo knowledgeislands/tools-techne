@@ -126,7 +126,7 @@ export function parseRecipe(manifest: TomlTable, directoryName: string, where: s
 }
 
 // Reads recipe manifests in place from the configured ki-techne-harness checkout,
-// which owns them (ADR-TECHNE-003); nothing is fetched or copied.
+// which owns them (ADR-KI-ARCADIA-006); nothing is fetched or copied.
 export class RecipeCatalogue {
   readonly harnessDir: string
   private cache: Recipe[] | null = null
