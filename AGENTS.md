@@ -18,7 +18,7 @@ Use `ki-repo-tools` for shared CLI and delivery policy, `ki-engineering` for the
 ## Cross-repository choreography
 
 - Arcadia Principal, the KI Agentic Harness, `tools-ki`, KI Specifications, the KI Website, the Techne Harness, and `tools-techne` may add a concrete handoff item to one another's Stream or roadmap. The receiving repository owns its priority, plan, and execution.
-- Record the originating repository and item, then state whether the handoff `blocks` or is `blocked by` the local item. Keep the relationship reciprocal where both items exist.
+- A handoff names the originating repository, states the need in plain terms, and says in plain words whether it blocks work there. Link only durable documentation, such as guides, specifications or manifests; never link to or cite another repository's roadmap record or its identifier, because records are pruned and such links break.
 - Prefer independently executable, non-blocking work. Mark an item as blocking only when it is a genuine prerequisite; otherwise let the receiving repository schedule it in its own horizon.
 - A handoff transfers no ownership: ADR-KI-ARCADIA-006 still decides what this repository owns.
 
