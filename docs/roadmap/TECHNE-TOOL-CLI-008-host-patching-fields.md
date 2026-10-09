@@ -2,12 +2,13 @@
 id: TECHNE-TOOL-CLI-008
 area: CLI
 title: Host patching binding fields
+project: agent-host
 status: triage
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-09T16:04:33Z
+updated_at: 2026-10-09T21:18:32Z
 ---
 
 # Host Patching Binding Fields

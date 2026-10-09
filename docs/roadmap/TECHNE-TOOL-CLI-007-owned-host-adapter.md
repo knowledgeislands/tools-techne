@@ -2,12 +2,13 @@
 id: TECHNE-TOOL-CLI-007
 area: CLI
 title: Owned-host adapter
+project: agent-host
 status: triage
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-08T13:03:25Z
-updated_at: 2026-10-08T13:03:25Z
+updated_at: 2026-10-09T21:18:31Z
 ---
 
 # Owned-Host Adapter
