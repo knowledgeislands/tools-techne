@@ -14,7 +14,7 @@ updated_at: 2026-10-08T13:03:25Z
 
 ## Goal
 
-`techne host` drives a `direct-host` binding on a machine the owner already runs and reaches over the tailnet, through an owned-host provider adapter beside `src/providers/aws/`, with no provisioning.
+`techne host` drives a `agent-host` binding on a machine the owner already runs and reaches over the tailnet, through an owned-host provider adapter beside `src/providers/aws/`, with no provisioning.
 
 ## Context
 

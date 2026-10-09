@@ -91,7 +91,7 @@ function ec2Operations(runner: FakeRunner): string[] {
 
 const WORKSPACE_REPORT = 'Repositories under /home/techne/workspaces/kit\nsummary: REPOSITORIES=21 AT_RISK=0\n'
 const FIXTURES = join(import.meta.dirname, 'fixtures')
-const DIRECT_HOST = readFileSync(join(FIXTURES, 'direct-host.recipe.toml'), 'utf8')
+const AGENT_HOST = readFileSync(join(FIXTURES, 'agent-host.recipe.toml'), 'utf8')
 const MULTI = readFileSync(join(FIXTURES, 'multi.recipe.toml'), 'utf8')
 const SCRIPTS = [
   'operations/aws/agent-host/setup.sh',
@@ -113,7 +113,7 @@ profile = "knowledge-islands-techne"
 stack = "ki-techne-ops-007-controller"
 `
 
-function binding(name: string, body = AWS_TABLE, recipe = 'direct-host'): string {
+function binding(name: string, body = AWS_TABLE, recipe = 'agent-host'): string {
   return `schema = "techne/host-binding/v1"\nname = "${name}"\nrecipe = "${recipe}"\n\n${body}`
 }
 
@@ -145,7 +145,7 @@ function fixture(options: FixtureOptions = {}): Fixture {
   const configuration = join(home, '.config/techne')
   mkdirSync(configuration, { recursive: true })
   mkdirSync(harnessDir)
-  const recipes = options.recipes === undefined ? { 'direct-host': DIRECT_HOST, multi: MULTI } : options.recipes
+  const recipes = options.recipes === undefined ? { 'agent-host': AGENT_HOST, multi: MULTI } : options.recipes
   if (recipes !== null) {
     mkdirSync(join(harnessDir, 'recipes'))
     for (const [name, text] of Object.entries(recipes)) {
@@ -540,7 +540,7 @@ describe('techne CLI', () => {
     expect(await add.run(['host', 'add', 'spare', '--help'])).toBe(0)
     expect(add.output().stdout).toContain('refuses to overwrite and provisions nothing')
     const show = harness(new FakeRunner([]))
-    expect(await show.run(['recipe', 'show', 'direct-host', '--help'])).toBe(0)
+    expect(await show.run(['recipe', 'show', 'agent-host', '--help'])).toBe(0)
     expect(show.output().stdout).toContain("the selected host's recipe")
     const completion = harness(new FakeRunner([]))
     expect(await completion.run(['completion', 'zsh', '--help'])).toBe(0)
@@ -1164,7 +1164,7 @@ describe('host bindings and selection', () => {
     }
     const sole = harness(new FakeRunner([]), fixture({ config: null }).environment)
     expect(await sole.run(['host', 'list'])).toBe(0)
-    expect(sole.output().stdout).toBe('* agent-host: recipe direct-host, provider aws (selected by sole binding)\n')
+    expect(sole.output().stdout).toBe('* agent-host: recipe agent-host, provider aws (selected by sole binding)\n')
   })
 
   test('refuses an unknown name at every named step without falling through', async () => {
@@ -1188,7 +1188,7 @@ describe('host bindings and selection', () => {
     const list = harness(new FakeRunner([]), setup.environment)
     expect(await list.run(['host', 'list'])).toBe(0)
     expect(list.output().stdout).toBe(
-      '  agent-host: recipe direct-host, provider aws\n  spare: recipe direct-host, provider aws\n' +
+      '  agent-host: recipe agent-host, provider aws\n  spare: recipe agent-host, provider aws\n' +
         'no host selected; choose one with --host <name>, TECHNE_HOST or default_host in config.toml\n'
     )
     const json = harness(new FakeRunner([]), setup.environment)
@@ -1197,8 +1197,8 @@ describe('host bindings and selection', () => {
       schema: 'techne/host-list/v1',
       selection: null,
       hosts: [
-        { name: 'agent-host', recipe: 'direct-host', provider: 'aws', selected: false },
-        { name: 'spare', recipe: 'direct-host', provider: 'aws', selected: false }
+        { name: 'agent-host', recipe: 'agent-host', provider: 'aws', selected: false },
+        { name: 'spare', recipe: 'agent-host', provider: 'aws', selected: false }
       ]
     })
     const runner = new FakeRunner([])
@@ -1262,7 +1262,7 @@ describe('host bindings and selection', () => {
 
   test('refuses invalid bindings before any provider call', async () => {
     const cases: [string, string][] = [
-      ['schema = "techne/host-binding/v0"\nname = "bad"\nrecipe = "direct-host"\n', 'schema must be'],
+      ['schema = "techne/host-binding/v0"\nname = "bad"\nrecipe = "agent-host"\n', 'schema must be'],
       [binding('other'), 'name other does not match the file name bad'],
       [binding('bad', ''), 'needs exactly one provider table, such as [aws]; found 0'],
       [binding('bad', `${AWS_TABLE}[stub]\n`), 'unknown field stub'],
@@ -1272,7 +1272,7 @@ describe('host bindings and selection', () => {
       [binding('bad', `${AWS_TABLE}bucket = "b"\n`), '[aws]: unknown field bucket'],
       [binding('bad', `${AWS_TABLE}tag = ""\n`), 'aws.tag must be a non-empty value'],
       [binding('bad', `workspace = []\n${AWS_TABLE}`), 'workspace must be a non-empty value'],
-      [binding('bad', AWS_TABLE, 'missing'), 'unknown recipe missing; available: direct-host, multi'],
+      [binding('bad', AWS_TABLE, 'missing'), 'unknown recipe missing; available: agent-host, multi'],
       [binding('bad', AWS_TABLE, 'multi'), 'workspace is required by recipe multi'],
       ['name = ', 'is not valid TOML']
     ]
@@ -1292,7 +1292,7 @@ describe('host bindings and selection', () => {
       [...PROVIDERS, stubProvider([])]
     )
     expect(await unsupported.run(['host', 'status'])).toBe(1)
-    expect(unsupported.output().stderr).toContain('recipe direct-host does not support provider stub; it supports aws')
+    expect(unsupported.output().stderr).toContain('recipe agent-host does not support provider stub; it supports aws')
   })
 
   test('refuses two bindings that share a host, tailnet or provider identity', async () => {
@@ -1399,8 +1399,8 @@ describe('host bindings and selection', () => {
   })
 
   test('leaves a value absent when its default names an absent value', async () => {
-    const recipe = DIRECT_HOST.replace('default = "~/workspaces/kit"', 'default = "{aws.missing}"')
-    const setup = fixture({ recipes: { 'direct-host': recipe } })
+    const recipe = AGENT_HOST.replace('default = "~/workspaces/kit"', 'default = "{aws.missing}"')
+    const setup = fixture({ recipes: { 'agent-host': recipe } })
     const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
     expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
     expect(runner.calls[2]?.env).not.toHaveProperty('KI_AGENT_HOST_WORKSPACE')
@@ -1433,7 +1433,7 @@ describe('host commands', () => {
     expect(JSON.parse(cli.output().stdout)).toEqual({
       schema: 'techne/host-status/v2',
       host: 'agent-host',
-      recipe: 'direct-host',
+      recipe: 'agent-host',
       provider: 'aws',
       exists: true,
       instanceId: INSTANCE,
@@ -1468,7 +1468,7 @@ describe('host commands', () => {
     const absent = harness(new FakeRunner([operator(), hosts()]), setup.environment)
     expect(await absent.run(['host', 'status'])).toBe(0)
     expect(absent.output().stdout).toBe(
-      'host: agent-host (recipe direct-host, provider aws)\ninstance: absent\nstate: absent\nregion: eu-west-1\n' +
+      'host: agent-host (recipe agent-host, provider aws)\ninstance: absent\nstate: absent\nregion: eu-west-1\n' +
         'selector: ki-agent-host-id=agent-host, Name=ki-techne-agent-host\nworkspace: skipped (host is absent)\n'
     )
 
@@ -1542,7 +1542,7 @@ describe('host commands', () => {
       [...PROVIDERS, stubProvider([])]
     )
     expect(await human.run(['host', 'status', '--all'])).toBe(1)
-    expect(human.output().stdout).toContain('host: agent-host (recipe direct-host, provider aws)\n')
+    expect(human.output().stdout).toContain('host: agent-host (recipe agent-host, provider aws)\n')
     expect(human.output().stdout).toContain('\n\nhost: broken\nerror: no AWS account for host broken')
     expect(human.output().stdout).toContain('\n\nhost: zoned (recipe multi, provider stub)\n')
 
@@ -1661,7 +1661,7 @@ describe('host commands', () => {
       ],
       [['host', 'list', '--aws-region', 'r'], '--aws-region is not supported for host list'],
       [
-        ['host', 'add', 'x', '--recipe', 'direct-host', '--aws-region', 'r'],
+        ['host', 'add', 'x', '--recipe', 'agent-host', '--aws-region', 'r'],
         '--aws-region is not supported for host add'
       ],
       [['completion', 'bash', '--aws-region', 'r'], '--aws-region is not supported for completion bash']
@@ -1802,17 +1802,17 @@ describe('host commands', () => {
   })
 
   test('refuses an incomplete recipe selector before any AWS call', async () => {
-    const recipe = DIRECT_HOST.replace('tag_value = "{aws.tag}"', 'tag_value = "{aws.missing}"')
-    const setup = fixture({ recipes: { 'direct-host': recipe } })
+    const recipe = AGENT_HOST.replace('tag_value = "{aws.tag}"', 'tag_value = "{aws.missing}"')
+    const setup = fixture({ recipes: { 'agent-host': recipe } })
     const runner = new FakeRunner([])
     const cli = harness(runner, setup.environment)
     expect(await cli.run(['host', 'status'])).toBe(1)
     expect(cli.output().stderr).toContain(
-      'no AWS selector tag_value for host agent-host is configured; set providers.aws.selectors.tag_value in recipe direct-host'
+      'no AWS selector tag_value for host agent-host is configured; set providers.aws.selectors.tag_value in recipe agent-host'
     )
     expect(runner.calls).toHaveLength(0)
 
-    const nameless = fixture({ recipes: { 'direct-host': DIRECT_HOST.replace('name_tag = "{host_name}"\n', '') } })
+    const nameless = fixture({ recipes: { 'agent-host': AGENT_HOST.replace('name_tag = "{host_name}"\n', '') } })
     const unnamed = new FakeRunner([operator(), hosts()])
     expect(await harness(unnamed, nameless.environment).run(['host', 'status'])).toBe(0)
     expect(unnamed.calls[1]?.args).not.toContain('Name=tag:Name,Values=ki-techne-agent-host')
@@ -1828,7 +1828,7 @@ describe('host commands', () => {
       'Name=tag:Name,Values=ki-techne-lab'
     ])
     expect(cli.output().stdout).toContain(
-      'teardown still needs, from recipe direct-host:\n' +
+      'teardown still needs, from recipe agent-host:\n' +
         '  - CloudFormation stack ki-techne-lab\n' +
         '  - SSM parameters /ki/techne/lab/\n' +
         '  - IAM operator role ki-techne-lab-operator\n' +
@@ -2079,7 +2079,7 @@ describe('host commands', () => {
       expect(await cli.run(['host', command, '--host', 'agent-host', '--json'])).toBe(2)
       expect(cli.output().stderr).toContain(`--json is not supported for host ${command}`)
     }
-    expect(await cli.run(['host', 'add', 'x', '--recipe', 'direct-host', '--json'])).toBe(2)
+    expect(await cli.run(['host', 'add', 'x', '--recipe', 'agent-host', '--json'])).toBe(2)
     expect(cli.output().stderr).toContain('--json is not supported for host add')
     expect(runner.calls).toHaveLength(0)
   })
@@ -2106,7 +2106,7 @@ describe('recipes and new bindings', () => {
     const cli = harness(runner, setup.environment)
     expect(await cli.run(['recipe', 'list'])).toBe(0)
     expect(cli.output().stdout).toBe(
-      '* direct-host (aws): Agents run directly on one host reached only over Tailscale SSH\n' +
+      '* agent-host (aws): Agents run directly on one host reached only over Tailscale SSH\n' +
         '  multi (aws, stub): Test recipe for two providers\n'
     )
     const json = harness(runner, setup.environment)
@@ -2115,7 +2115,7 @@ describe('recipes and new bindings', () => {
       schema: 'techne/recipe-list/v1',
       recipes: [
         {
-          name: 'direct-host',
+          name: 'agent-host',
           summary: 'Agents run directly on one host reached only over Tailscale SSH',
           runtime: 'direct',
           providers: ['aws'],
@@ -2132,10 +2132,10 @@ describe('recipes and new bindings', () => {
     })
     const unselected = harness(runner, fixture({ bindings: { a: binding('a'), b: binding('b') } }).environment)
     expect(await unselected.run(['recipe', 'list'])).toBe(0)
-    expect(unselected.output().stdout).toMatch(/^ {2}direct-host/)
+    expect(unselected.output().stdout).toMatch(/^ {2}agent-host/)
     const unbound = harness(runner, fixture({ bindings: {} }).environment)
     expect(await unbound.run(['recipe', 'list'])).toBe(0)
-    expect(unbound.output().stdout).toMatch(/^ {2}direct-host/)
+    expect(unbound.output().stdout).toMatch(/^ {2}agent-host/)
     const empty = harness(runner, fixture({ recipes: {}, bindings: {} }).environment)
     expect(await empty.run(['recipe', 'list'])).toBe(0)
     expect(empty.output().stdout).toBe('no recipes in the harness checkout\n')
@@ -2153,7 +2153,7 @@ describe('recipes and new bindings', () => {
     const selected = harness(new FakeRunner([]), setup.environment)
     expect(await selected.run(['recipe', 'show', '--json'])).toBe(0)
     const recipe = JSON.parse(selected.output().stdout)
-    expect(recipe).toMatchObject({ schema: 'techne/recipe/v1', name: 'direct-host', providers: ['aws'] })
+    expect(recipe).toMatchObject({ schema: 'techne/recipe/v1', name: 'agent-host', providers: ['aws'] })
     expect(recipe.provider.aws.selectors.tag_key).toBe('ki-agent-host-id')
     expect(recipe.parameters.host_name).toEqual({
       summary: 'Operating-system host name and resource name',
@@ -2172,7 +2172,7 @@ describe('recipes and new bindings', () => {
 
     const unknown = harness(new FakeRunner([]), setup.environment)
     expect(await unknown.run(['recipe', 'show', 'ghost'])).toBe(1)
-    expect(unknown.output().stderr).toBe('techne: error: unknown recipe ghost; available: direct-host, multi\n')
+    expect(unknown.output().stderr).toBe('techne: error: unknown recipe ghost; available: agent-host, multi\n')
     const nothing = harness(new FakeRunner([]), fixture({ recipes: {}, bindings: {} }).environment)
     expect(await nothing.run(['recipe', 'show', 'ghost'])).toBe(1)
     expect(nothing.output().stderr).toBe('techne: error: unknown recipe ghost; available: none\n')
@@ -2184,14 +2184,14 @@ describe('recipes and new bindings', () => {
   test('writes a new binding with one provider table and never overwrites', async () => {
     const setup = fixture({ bindings: {}, config: null })
     const cli = harness(new FakeRunner([]), setup.environment)
-    expect(await cli.run(['host', 'add', 'lab', '--recipe', 'direct-host'])).toBe(0)
+    expect(await cli.run(['host', 'add', 'lab', '--recipe', 'agent-host'])).toBe(0)
     const file = join(setup.configuration, 'hosts/lab.toml')
     expect(cli.output().stdout).toBe(`wrote ${file}\nset its provider values before use; nothing was provisioned\n`)
     expect(readFileSync(file, 'utf8')).toBe(
-      'schema = "techne/host-binding/v1"\nname = "lab"\nrecipe = "direct-host"\n\n[aws]\n'
+      'schema = "techne/host-binding/v1"\nname = "lab"\nrecipe = "agent-host"\n\n[aws]\n'
     )
     const again = harness(new FakeRunner([]), setup.environment)
-    expect(await again.run(['host', 'add', 'lab', '--recipe', 'direct-host'])).toBe(1)
+    expect(await again.run(['host', 'add', 'lab', '--recipe', 'agent-host'])).toBe(1)
     expect(again.output().stderr).toBe(`techne: error: refusing to overwrite the existing binding ${file}\n`)
 
     const stub = harness(
@@ -2210,11 +2210,11 @@ describe('recipes and new bindings', () => {
         ['host', 'add', 'x', '--recipe', 'multi'],
         'recipe multi supports several providers; choose one with --provider <aws|stub>'
       ],
-      [['host', 'add', 'x', '--recipe', 'direct-host', '--provider', 'stub'], 'unknown provider stub'],
-      [['host', 'add', 'Bad_Name', '--recipe', 'direct-host'], 'invalid binding name Bad_Name'],
+      [['host', 'add', 'x', '--recipe', 'agent-host', '--provider', 'stub'], 'unknown provider stub'],
+      [['host', 'add', 'Bad_Name', '--recipe', 'agent-host'], 'invalid binding name Bad_Name'],
       [['host', 'add', 'x'], 'host add requires --recipe <recipe>'],
-      [['host', 'add', '--recipe', 'direct-host'], 'host add requires exactly one name'],
-      [['host', 'add', 'x', 'y', '--recipe', 'direct-host'], 'host add requires exactly one name']
+      [['host', 'add', '--recipe', 'agent-host'], 'host add requires exactly one name'],
+      [['host', 'add', 'x', 'y', '--recipe', 'agent-host'], 'host add requires exactly one name']
     ]
     for (const [args, message] of cases) {
       const refused = harness(new FakeRunner([]), setup.environment)
@@ -2229,8 +2229,8 @@ describe('recipes and new bindings', () => {
       [],
       [...PROVIDERS, stubProvider([])]
     )
-    expect(await unsupported.run(['host', 'add', 'x', '--recipe', 'direct-host', '--provider', 'stub'])).toBe(2)
-    expect(unsupported.output().stderr).toContain('recipe direct-host does not support provider stub; it supports aws')
+    expect(await unsupported.run(['host', 'add', 'x', '--recipe', 'agent-host', '--provider', 'stub'])).toBe(2)
+    expect(unsupported.output().stderr).toContain('recipe agent-host does not support provider stub; it supports aws')
     expect(existsSync(join(setup.configuration, 'hosts/x.toml'))).toBe(false)
   })
 })

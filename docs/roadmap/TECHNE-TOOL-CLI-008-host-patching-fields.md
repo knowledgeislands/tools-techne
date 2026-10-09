@@ -14,11 +14,11 @@ updated_at: 2026-10-09T16:04:33Z
 
 ## Goal
 
-A `direct-host` binding can set the optional `reboot_window` and `livepatch` fields that the harness recipe's patching model reads, and `techne host status` shows the optional `updates` member of the `techne/host-workspace/v1` status document.
+A `agent-host` binding can set the optional `reboot_window` and `livepatch` fields that the harness recipe's patching model reads, and `techne host status` shows the optional `updates` member of the `techne/host-workspace/v1` status document.
 
 ## Context
 
-[TECHNE-TOOLS-OPS-022](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/roadmap/TECHNE-TOOLS-OPS-022-agent-host-os-patching.md) in `ki-techne-harness` makes OS patching part of the `direct-host` recipe. The binding owner answered its six decisions on 2026-10-09 (Decision 26 in the Techne decisions log, with the window form amended by Decision 27): no automatic reboot by default, with an optional binding window of a daily host-local time, `HH:MM` such as `04:00`; Livepatch as an opt-in binding field; and pending updates and reboot-required reported without ever changing the status outcome. The harness record hands the CLI side to this repository.
+[TECHNE-TOOLS-OPS-022](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/roadmap/TECHNE-TOOLS-OPS-022-agent-host-os-patching.md) in `ki-techne-harness` makes OS patching part of the `agent-host` recipe. The binding owner answered its six decisions on 2026-10-09 (Decision 26 in the Techne decisions log, with the window form amended by Decision 27): no automatic reboot by default, with an optional binding window of a daily host-local time, `HH:MM` such as `04:00`; Livepatch as an opt-in binding field; and pending updates and reboot-required reported without ever changing the status outcome. The harness record hands the CLI side to this repository.
 
 `src/bindings.ts` accepts only the fixed `NEUTRAL_FIELDS` list plus each provider's binding fields, so the two new recipe parameters cannot be written in a binding until this repository accepts them.
 

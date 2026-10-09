@@ -1,5 +1,5 @@
-# Vendored from ki-techne-harness b37b16c recipes/direct-host/recipe.toml; tests read it as the harness's own manifest.
-# The direct-host recipe (KI-ARCADIA-GOV-025, TECHNE-TOOLS-OPS-012): an agent
+# Vendored from ki-techne-harness b37b16c recipes/direct-host/recipe.toml, since renamed agent-host (db399b8); tests read it as the harness's own manifest.
+# The agent-host recipe (KI-ARCADIA-GOV-025, TECHNE-TOOLS-OPS-012): an agent
 # host whose agents run on the host itself. A binding names one supported
 # provider by its provider table; every binding value reaches the scripts only
 # through the environment variable declared for it, and each script defaults
@@ -12,7 +12,7 @@
 # [providers.<provider>] table names a provider the recipe supports.
 
 schema = "techne/recipe/v1"
-name = "direct-host"
+name = "agent-host"
 summary = "Agents run directly on one host reached only over Tailscale SSH"
 runtime = "direct"
 

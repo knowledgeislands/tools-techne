@@ -10,7 +10,7 @@ Techne reads recipes from a local Techne Harness checkout, found by `--harness-d
 
 ```sh
 techne recipe list
-techne recipe show direct-host
+techne recipe show agent-host
 ```
 
 `recipe show` lists a recipe's parameters, the providers it supports and each provider's own parameters. Without an argument it shows the selected host's recipe.
@@ -20,7 +20,7 @@ techne recipe show direct-host
 Each host is one file, `~/.config/techne/hosts/<name>.toml` (under `$XDG_CONFIG_HOME` when that is set). Create one with:
 
 ```sh
-techne host add agent-host --recipe direct-host
+techne host add agent-host --recipe agent-host
 ```
 
 This writes the schema, name and recipe and one empty provider table, and provisions nothing. Add `--provider <provider>` when the recipe supports more than one. It refuses to overwrite an existing binding. Fill the provider table before use, for example:
@@ -28,7 +28,7 @@ This writes the schema, name and recipe and one empty provider table, and provis
 ```toml
 schema = "techne/host-binding/v1"
 name = "agent-host"
-recipe = "direct-host"
+recipe = "agent-host"
 
 [aws]
 account = "<account id>"
