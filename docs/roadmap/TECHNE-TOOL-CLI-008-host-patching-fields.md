@@ -1,7 +1,7 @@
 ---
 id: TECHNE-TOOL-CLI-008
 area: CLI
-title: Host patching binding fields and status updates
+title: Host patching binding fields
 status: triage
 blocks: []
 blocked_by: []
@@ -10,7 +10,7 @@ created_at: 2026-10-09T15:42:04Z
 updated_at: 2026-10-09T15:42:04Z
 ---
 
-# Host Patching Binding Fields and Status Updates
+# Host Patching Binding Fields
 
 ## Goal
 
