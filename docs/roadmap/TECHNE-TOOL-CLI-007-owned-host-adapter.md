@@ -3,12 +3,13 @@ id: TECHNE-TOOL-CLI-007
 area: CLI
 title: Owned-host adapter
 project: agent-host
-status: triage
+status: cancelled
+resolution: rejected
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-08T13:03:25Z
-updated_at: 2026-10-09T21:18:31Z
+updated_at: 2026-10-09T21:40:00Z
 ---
 
 # Owned-Host Adapter
@@ -27,6 +28,10 @@ Running an owned host needs a governance decision on the [Techne Programme Hold]
 
 - In scope: an owned-host provider adapter under `src/providers/`; `host` commands for status, stop, rebuild and withdraw on that provider, following the harness's status contract and manifest; binding validation for the provider; stubbed tests.
 - Out of scope: the harness recipe, scripts and contract ([TECHNE-TOOLS-OPS-021](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/roadmap/TECHNE-TOOLS-OPS-021-owned-host-provider.md) in `ki-techne-harness`); the Techne Programme Hold decision; and any remote action.
+
+## Cancelled
+
+Cancelled 2026-10-09 as rejected, approved by Kris Brown (state-of-play decisions log, Decision 31): no owned host is planned, so Kris chose not to keep this as a work record. It is kept, with its `ki-techne-harness` pair TECHNE-TOOLS-OPS-021 (`docs/roadmap/TECHNE-TOOLS-OPS-021-owned-host-provider.md`, cancelled with it), as one owned-host provider idea in Arcadia's agent-host Project note (`ki-arcadia-principal`, `Streams/Projects/agent-host/agent-host.md`). It leaves no outstanding change.
 
 ## Discussion
 
