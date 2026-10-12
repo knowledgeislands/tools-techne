@@ -3,12 +3,17 @@ id: KI-TOOL-TECHNE-CLI-006
 area: CLI
 title: Guarded host commands
 project: agent-host
-status: triage
+kind: deliver
+status: draft
+horizon: hold
+hold:
+  reason: parked
+  condition: Explicit Kris release for local planning through agent-host
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-09T21:53:46Z
+updated_at: 2026-10-12T07:08:49Z
 ---
 
 # Guarded Host Commands
@@ -38,3 +43,7 @@ Starts only after the durability pilot is delivered in `ki-techne-harness` and i
 
 - Whether `host teardown` is removed outright or kept briefly as an error pointing to the two new commands.
 - How the expiry warning within 14 days reaches `techne host status` once the harness's pin and expiry work lands.
+
+### Adoption authority
+
+On 12 October 2026, Kris approved the recommendation: "I approve your recommendation, I can review it further later" (tools-burndown Decision 11). Adopted as deliver/draft on Hold, intentionally parked until explicit Kris release for local planning through agent-host. Decision 12 preserves these dispositions and does not release other held work. Adoption grants no implementation, acceptance, release, remote-agent or remote-environment authority. Local planning does not resume all agent-host work.

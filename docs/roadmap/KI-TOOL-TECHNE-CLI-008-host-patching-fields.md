@@ -3,12 +3,14 @@ id: KI-TOOL-TECHNE-CLI-008
 area: CLI
 title: Host patching binding fields
 project: agent-host
-status: triage
+kind: deliver
+status: draft
+horizon: next
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-09T21:38:50Z
+updated_at: 2026-10-12T07:08:49Z
 ---
 
 # Host Patching Binding Fields
@@ -28,8 +30,50 @@ The `agent-host` recipe in `ki-techne-harness` now makes OS patching part of the
 - In scope: accepting `reboot_window` and `livepatch` as optional binding fields, validating the window's form (a 24-hour `HH:MM` with no weekday) and Livepatch's boolean value; passing them to the harness scripts as their recipe parameters; rendering the optional `updates` member (pending and security counts, reboot required and since when, Livepatch state) in `techne host status` text and JSON output without changing the exit status; stubbed tests.
 - Out of scope: the recipe, boot script, status script and banner, which the harness owns; Ubuntu Pro attachment and any token handling, which the binding owner does; and any remote action.
 
+## Current state
+
+Adopted for local planning only. The existing binding whitelist excludes the recipe's two optional patching fields; the canonical implementation plan is not yet prepared or approved.
+
+## Steps
+
+- [ ] Prepare the bounded implementation plan from the current tools-techne and local Harness contracts and source, then return it for owner review. No source or tests are authorised by this adoption.
+
+## Files touched
+
+This record only during planning; implementation paths will be identified from source before plan review.
+
+## Verify
+
+Before publishing adoption, run the work-selector, roadmap and authoring audits, verify preserved identity, creation timestamp, dependencies and baseline, and run `git diff --check`.
+
+## Dependencies / blocks
+
+The recipe contract already exists. Keep the dependency arrays unchanged; this adoption does not release guarded-host work or remote operations.
+
+## Documentation impact
+
+### Decision Records
+
+No new architectural decision is made by adoption.
+
+### Specifications
+
+No accepted behaviour contract changes during adoption; planning will inspect the existing versioned contracts.
+
+### Guides
+
+No operating guidance changes during adoption; planning will identify any required binding/status guidance.
+
+### Roadmap
+
+This existing record is selected as draft Next for local planning only; the guarded-host record remains held.
+
 ## Discussion
 
 ### Pairing
 
 The CLI side of the harness recipe's patching model. The harness owns the recipe contract and this adapter follows it, as ADR-KI-PRINCIPAL-006 requires. Neither blocks the other: without this record the fields reach the harness scripts only through their environment variables (`AGENT_HOST_REBOOT_WINDOW` and `AGENT_HOST_LIVEPATCH`), and the `updates` member is additive to a document whose schema stays `techne/host-workspace/v1`. The parameter names are now settled in the recipe manifest, so this record can be planned.
+
+### Adoption authority
+
+On 12 October 2026, Kris approved the recommendation: "I approve your recommendation, I can review it further later" (tools-burndown Decision 11). Adopted as deliver/draft Next; Decision 11 explicitly releases local planning of this record only. Decision 12 preserves these dispositions and does not release other held work. Adoption grants no implementation, acceptance, release, remote-agent or remote-environment authority. Local planning does not resume all agent-host work.
