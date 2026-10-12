@@ -28,12 +28,21 @@ export interface RecipeProvider extends RecipeSection {
   selectors: Readonly<Record<string, string>>
 }
 
+// The recipe's [status] declaration: `status --json` prints one document of
+// this schema, and the exit status carries its outcome.
+export interface RecipeStatus {
+  schema: string
+  exit: Readonly<Record<string, number>>
+}
+
 export interface Recipe extends RecipeSection {
   name: string
   summary: string
   runtime: string
   providers: readonly string[]
   provider: Readonly<Record<string, RecipeProvider>>
+  // Null when the recipe declares no JSON status report.
+  status: RecipeStatus | null
 }
 
 function strings(table: TomlTable, where: string): Record<string, string> {
@@ -86,6 +95,20 @@ function footprint(table: TomlTable, where: string): string[] {
   })
 }
 
+function statusDeclaration(manifest: TomlTable, where: string): RecipeStatus | null {
+  if (manifest['status'] === undefined) return null
+  const at = `${where} status`
+  const table = optionalTable(manifest, 'status', where)
+  const exit: Record<string, number> = {}
+  for (const [outcome, value] of Object.entries(optionalTable(table, 'exit', at))) {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 255) {
+      throw new TechneError(`${at}.exit.${outcome} must be an exit status from 0 to 255`)
+    }
+    exit[outcome] = value
+  }
+  return { schema: requiredString(table, 'schema', at), exit }
+}
+
 function section(table: TomlTable, where: string): RecipeSection {
   return {
     paths: strings(optionalTable(table, 'paths', where), `${where} paths`),
@@ -121,6 +144,7 @@ export function parseRecipe(manifest: TomlTable, directoryName: string, where: s
     runtime: requiredString(manifest, 'runtime', where),
     providers,
     provider,
+    status: statusDeclaration(manifest, where),
     ...section(manifest, where)
   }
 }

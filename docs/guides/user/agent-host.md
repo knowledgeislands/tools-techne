@@ -41,6 +41,20 @@ A binding has exactly one provider table and no `provider` key: the table name i
 
 Run `techne host list` to see the bindings, their recipe and provider, and which one is selected.
 
+### Patching settings
+
+The `agent-host` recipe installs security updates unattended. Two optional top-level fields shape the rest:
+
+```toml
+reboot_window = "04:00"
+livepatch = true
+```
+
+- `reboot_window` is a daily host-local time, written as a 24-hour `HH:MM` with no weekday. The host restarts itself at that time only when a reboot is required and nobody is logged in. Leave it out and the host never restarts itself; restart it through `techne host stop` and `techne host start`.
+- `livepatch` is `true` or `false`, written as a TOML boolean rather than a string. Leave it out for no Livepatch. Turning it on needs an Ubuntu Pro token stored for the host by its owner; Techne never handles that token.
+
+Techne refuses any other form before running anything, and passes each value only to the recipe scripts that declare it, which for `agent-host` is the build. Editing a binding changes nothing on a running host: the settings reach a host only when it is next built, which [the harness operator guide](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#patching-and-restart) describes.
+
 ## Select a host
 
 Read-only commands act on one selected host, chosen by the first of:
@@ -84,6 +98,8 @@ techne host status --all
 The report names the host, its recipe and provider, the instance, its state, the selector and the region; an absent host reports `absent` rather than an error. When the instance is running, Techne also runs the recipe's status script and prints its workspace report as the harness renders it. For a host that is not running the workspace section says `skipped`.
 
 `--json` prints one object with the schema `techne/host-status/v2`; the `workspace` object has a `state` of `reported`, `skipped` or `failed`, the harness `report` text, and a `detail` explaining a skip or failure. `--all` reports every binding in turn, as `techne/host-status-list/v1` with `--json`; a binding that cannot be reported shows its error and the others continue. A failed workspace report or binding exits 1 after the report. The command only reads from AWS and the host.
+
+The text report shows the harness's own Updates section: pending and security updates, whether a reboot is required and since when, and the Livepatch state. With `--json`, when the recipe declares the `techne/host-workspace/v1` status document and the workspace was reported, Techne reads that document once more and copies its `updates` member into `workspace.updates`: `os`, `pending`, `security`, `reboot_required`, `reboot_required_since`, `reboot_packages` and `livepatch`, each `null` when the host could not tell. `updates` is `null` when the document says so, and is left out when the recipe declares no document or that read fails or returns anything malformed; Techne never fills in a zero or `false`. The updates are advisory only: they never change the workspace state or the exit status, which still come from the text report.
 
 ## Set up the workspace
 

@@ -640,13 +640,17 @@ interface HostStatusReport {
 async function statusOf(context: Context, binding: HostBinding): Promise<HostStatusReport> {
   const adapter = context.hostAdapter(binding)
   const report = await adapter.status()
-  const workspace: WorkspaceStatus =
-    report.state === 'running'
-      ? await new HarnessCheckout(context.dependencies.runner, context.recipes).workspaceStatus(
-          binding.recipe,
-          context.hostEnvironment(binding, adapter, 'status')
-        )
-      : { state: 'skipped', report: null, detail: `host is ${report.state}` }
+  if (report.state !== 'running') {
+    return { binding, report, workspace: { state: 'skipped', report: null, detail: `host is ${report.state}` } }
+  }
+  const harness = new HarnessCheckout(context.dependencies.runner, context.recipes)
+  const environment = context.hostEnvironment(binding, adapter, 'status')
+  const workspace: WorkspaceStatus = await harness.workspaceStatus(binding.recipe, environment)
+  // JSON output alone adds the advisory updates member; text shows the report's own section.
+  if (context.invocation.json && workspace.state === 'reported') {
+    const updates = await harness.workspaceUpdates(binding.recipe, environment)
+    if (updates !== undefined) workspace.updates = updates
+  }
   return { binding, report, workspace }
 }
 

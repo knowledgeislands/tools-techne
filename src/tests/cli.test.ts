@@ -2099,6 +2099,381 @@ describe('host commands', () => {
   })
 })
 
+const STATUS_SCRIPT = 'operations/aws/agent-host/status.sh'
+const STATUS_ENV = {
+  AGENT_HOST_TAILSCALE_NAME: 'ki-techne-agent-host',
+  KI_AGENT_HOST_WORKSPACE: '~/workspaces/kit',
+  ...AWS_ENV
+}
+const UPDATES = {
+  os: 'ubuntu',
+  pending: 7,
+  security: 2,
+  reboot_required: true,
+  reboot_required_since: '2026-10-11T03:12:00Z',
+  reboot_packages: ['linux-image-6.8.0-45-generic', 'libc6'],
+  livepatch: 'enabled'
+}
+const UNKNOWN_UPDATES = {
+  os: 'macos',
+  pending: null,
+  security: null,
+  reboot_required: null,
+  reboot_required_since: null,
+  reboot_packages: null,
+  livepatch: 'unsupported'
+}
+
+// A techne/host-workspace/v1 document as the recipe's `status --json` prints it.
+function workspaceDocument(outcome = 'clean', members: Record<string, unknown> = { updates: UPDATES }): string {
+  return JSON.stringify({
+    schema: 'techne/host-workspace/v1',
+    generated_at: '2026-10-12T04:30:00Z',
+    host: 'ki-techne-agent-host',
+    workspace: '~/workspaces/kit',
+    fetched: false,
+    outcome,
+    repositories: [],
+    ...members
+  })
+}
+
+// Answers the operator, instance and text status reads, then rejects the next call.
+class RejectingRunner extends FakeRunner {
+  override async run(command: string, args: readonly string[], options: RunOptions = {}): Promise<CommandResult> {
+    const result = await super.run(command, args, options)
+    if (this.calls.length > 3) throw new Error('ssh: raw-supplemental-secret')
+    return result
+  }
+}
+
+function patched(fields: string): string {
+  return binding('agent-host', `${fields}\n${AWS_TABLE}`)
+}
+
+describe('host patching fields', () => {
+  test('accepts absent fields, boundary windows and boolean Livepatch without passing them to setup or status', async () => {
+    for (const fields of ['', 'reboot_window = "00:00"', 'reboot_window = "23:59"\nlivepatch = true']) {
+      const setup = fixture({ bindings: { 'agent-host': patched(fields) } })
+      const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+      expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
+      expect(runner.calls[2]?.env).toEqual(STATUS_ENV)
+    }
+
+    const setup = fixture({ bindings: { 'agent-host': patched('reboot_window = "04:00"\nlivepatch = false') } })
+    const runner = new FakeRunner([response(), response(), response()])
+    expect(await harness(runner, setup.environment).run(['host', 'setup', '--host', 'agent-host'])).toBe(0)
+    expect(runner.calls[2]?.env).not.toHaveProperty('AGENT_HOST_REBOOT_WINDOW')
+    expect(runner.calls[2]?.env).not.toHaveProperty('AGENT_HOST_LIVEPATCH')
+  })
+
+  test('passes the fields only to the scripts the recipe declares, keeping an explicit false', async () => {
+    const recipe = AGENT_HOST.replaceAll(
+      /(AGENT_HOST_(?:REBOOT_WINDOW|LIVEPATCH)"\n)scripts = \["provision"\]/g,
+      '$1scripts = ["provision", "status"]'
+    )
+    const setup = fixture({
+      recipes: { 'agent-host': recipe },
+      bindings: { 'agent-host': patched('reboot_window = "04:00"\nlivepatch = false') }
+    })
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
+    expect(runner.calls[2]?.env).toEqual({
+      ...STATUS_ENV,
+      AGENT_HOST_REBOOT_WINDOW: '04:00',
+      AGENT_HOST_LIVEPATCH: 'false'
+    })
+  })
+
+  test('refuses malformed windows and non-boolean Livepatch before any subprocess', async () => {
+    const window = 'reboot_window must be a 24-hour HH:MM time, such as "04:00"'
+    const livepatch = 'livepatch must be true or false'
+    const cases: [string, string][] = [
+      ['reboot_window = ""', window],
+      ['reboot_window = "4:00"', window],
+      ['reboot_window = "24:00"', window],
+      ['reboot_window = "12:60"', window],
+      ['reboot_window = "Mon 04:00"', window],
+      ['reboot_window = " 04:00"', window],
+      ['reboot_window = "04:00\\n"', window],
+      ['reboot_window = 400', window],
+      ['reboot_window = ["04:00"]', window],
+      ['reboot_window = { at = "04:00" }', window],
+      ['livepatch = "true"', livepatch],
+      ['livepatch = 1', livepatch],
+      ['livepatch = [true]', livepatch],
+      ['livepatch = { on = true }', livepatch]
+    ]
+    for (const [fields, message] of cases) {
+      const setup = fixture({ bindings: { 'agent-host': patched(fields) } })
+      const runner = new FakeRunner([])
+      const cli = harness(runner, setup.environment)
+      expect(await cli.run(['host', 'status'])).toBe(1)
+      expect(cli.output().stderr).toBe(
+        `techne: error: ${join(setup.configuration, 'hosts/agent-host.toml')}: ${message}\n`
+      )
+      expect(runner.calls).toHaveLength(0)
+    }
+  })
+
+  test('holds recipe defaults to the same forms without inventing any', async () => {
+    const withDefault = (field: string, value: string) =>
+      AGENT_HOST.replace(`[parameters.${field}]\n`, `[parameters.${field}]\ndefault = ${value}\n`)
+    for (const [recipe, message] of [
+      [withDefault('reboot_window', '"25:00"'), 'reboot_window must be a 24-hour HH:MM time'],
+      [withDefault('livepatch', '"yes"'), 'livepatch must be true or false']
+    ] as const) {
+      const cli = harness(new FakeRunner([]), fixture({ recipes: { 'agent-host': recipe } }).environment)
+      expect(await cli.run(['host', 'list'])).toBe(1)
+      expect(cli.output().stderr).toContain(message)
+    }
+    const recipe = withDefault('livepatch', 'true').replace(
+      'AGENT_HOST_LIVEPATCH"\nscripts = ["provision"]',
+      'AGENT_HOST_LIVEPATCH"\nscripts = ["status"]'
+    )
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    expect(
+      await harness(runner, fixture({ recipes: { 'agent-host': recipe } }).environment).run(['host', 'status'])
+    ).toBe(0)
+    expect(runner.calls[2]?.env).toEqual({ ...STATUS_ENV, AGENT_HOST_LIVEPATCH: 'true' })
+  })
+
+  test('refuses a malformed status declaration', async () => {
+    const declaration = '[status]\nschema = "techne/host-workspace/v1"\n'
+    for (const [replacement, message] of [
+      ['[status]\n', 'recipe recipes/agent-host/recipe.toml status: schema is required'],
+      [`${declaration}exit = 1\n`, 'recipe recipes/agent-host/recipe.toml status: exit must be a table'],
+      [`${declaration}exit.clean = "0"\n`, 'status.exit.clean must be an exit status from 0 to 255'],
+      [`${declaration}exit.clean = 256\n`, 'status.exit.clean must be an exit status from 0 to 255'],
+      [`${declaration}exit.clean = 0.5\n`, 'status.exit.clean must be an exit status from 0 to 255']
+    ] as const) {
+      const recipe = AGENT_HOST.replace(/^\[status\][\s\S]*?unreachable = 255\n/m, replacement)
+      const cli = harness(new FakeRunner([]), fixture({ recipes: { 'agent-host': recipe } }).environment)
+      expect(await cli.run(['host', 'list'])).toBe(1)
+      expect(cli.output().stderr).toContain(message)
+    }
+  })
+})
+
+describe('host status updates', () => {
+  test('projects the updates member into JSON status from one supplemental read', async () => {
+    const setup = fixture()
+    const document = workspaceDocument('clean', { updates: { ...UPDATES, kernel: 'raw-additive' }, banner: 'x' })
+    const runner = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(WORKSPACE_REPORT),
+      response(document)
+    ])
+    const cli = harness(runner, setup.environment)
+    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+      state: 'reported',
+      report: WORKSPACE_REPORT,
+      detail: null,
+      updates: UPDATES
+    })
+    expect(cli.output().stdout).not.toContain('raw-additive')
+    expect(runner.calls).toHaveLength(4)
+    expect(runner.calls[3]).toEqual({
+      command: 'bash',
+      args: [join(setup.harness, STATUS_SCRIPT), '--json'],
+      mode: 'capture',
+      cwd: setup.harness,
+      env: STATUS_ENV
+    })
+  })
+
+  test('keeps at-risk and unknown documents advisory, explicit null as null and an omitted member omitted', async () => {
+    const cases: [CommandResult, unknown][] = [
+      [response(workspaceDocument('at-risk'), '', 3), UPDATES],
+      [response(workspaceDocument('unknown', { updates: UNKNOWN_UPDATES }), '', 4), UNKNOWN_UPDATES],
+      [response(workspaceDocument('clean', { updates: null })), null]
+    ]
+    for (const [supplemental, updates] of cases) {
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(WORKSPACE_REPORT),
+        supplemental
+      ])
+      const cli = harness(runner, fixture().environment)
+      expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+        state: 'reported',
+        report: WORKSPACE_REPORT,
+        detail: null,
+        updates
+      })
+    }
+    const omitted = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(WORKSPACE_REPORT),
+      response(workspaceDocument('clean', {}))
+    ])
+    const cli = harness(omitted, fixture().environment)
+    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout).workspace).not.toHaveProperty('updates')
+  })
+
+  test('leaves updates unavailable for any invalid supplemental read without changing the report', async () => {
+    const malformed = (field: string, value: unknown) =>
+      workspaceDocument('clean', { updates: { ...UPDATES, [field]: value } })
+    const { ['os' as keyof typeof UPDATES]: _os, ...missing } = UPDATES
+    const supplementals: CommandResult[] = [
+      response('raw-supplemental-secret'),
+      response('[1]'),
+      response(''),
+      response(workspaceDocument().replace('host-workspace/v1', 'host-workspace/v2')),
+      response(workspaceDocument('clean'), '', 3),
+      response(workspaceDocument('at-risk'), '', 0),
+      response(workspaceDocument('failed'), '', 1),
+      response(workspaceDocument('unreachable'), '', 255),
+      response('', 'ssh: raw-supplemental-secret', 255),
+      response(JSON.stringify({ ...JSON.parse(workspaceDocument()), outcome: 3 })),
+      response(workspaceDocument('clean', { updates: 'raw-supplemental-secret' })),
+      response(workspaceDocument('clean', { updates: missing })),
+      response(malformed('pending', -1)),
+      response(malformed('pending', 1.5)),
+      response(malformed('pending', '7')),
+      response(malformed('security', true)),
+      response(malformed('reboot_required', 'yes')),
+      response(malformed('reboot_required_since', 0)),
+      response(malformed('reboot_packages', 'libc6')),
+      response(malformed('reboot_packages', [1])),
+      response(malformed('os', 1)),
+      response(malformed('livepatch', false))
+    ]
+    for (const supplemental of supplementals) {
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(WORKSPACE_REPORT),
+        supplemental
+      ])
+      const cli = harness(runner, fixture().environment)
+      expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+        state: 'reported',
+        report: WORKSPACE_REPORT,
+        detail: null
+      })
+      expect(cli.output().stdout).not.toContain('raw-supplemental-secret')
+      expect(cli.output().stderr).toBe('')
+      expect(runner.calls).toHaveLength(4)
+    }
+
+    const rejecting = new RejectingRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    const cli = harness(rejecting, fixture().environment)
+    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+      state: 'reported',
+      report: WORKSPACE_REPORT,
+      detail: null
+    })
+    expect(cli.output().stdout + cli.output().stderr).not.toContain('raw-supplemental-secret')
+  })
+
+  test('keeps the primary text read authoritative for state and exit', async () => {
+    for (const exitCode of [1, 3, 4, 255]) {
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(WORKSPACE_REPORT, 'status failed', exitCode),
+        response(workspaceDocument('at-risk'), '', 3)
+      ])
+      const cli = harness(runner, fixture().environment)
+      expect(await cli.run(['host', 'status', '--json'])).toBe(1)
+      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+        state: 'failed',
+        report: null,
+        detail: 'harness status script failed: status failed'
+      })
+      expect(runner.calls).toHaveLength(3)
+    }
+
+    const stopped = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
+    const cli = harness(stopped, fixture().environment)
+    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+    expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+      state: 'skipped',
+      report: null,
+      detail: 'host is stopped'
+    })
+    expect(stopped.calls).toHaveLength(2)
+  })
+
+  test('renders the Updates section once from the text report, with no second read', async () => {
+    const report = `${WORKSPACE_REPORT}Updates\n  Pending updates          unknown\n  Livepatch                unknown\n`
+    const runner = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(report),
+      response(workspaceDocument())
+    ])
+    const cli = harness(runner, fixture().environment)
+    expect(await cli.run(['host', 'status'])).toBe(0)
+    expect(cli.output().stdout).toContain(`workspace: reported by the recipe's status script\n${report}`)
+    expect(cli.output().stdout.split('Updates').length).toBe(2)
+    expect(cli.output().stdout).not.toContain('reboot_required')
+    expect(runner.calls).toHaveLength(3)
+  })
+
+  test('keeps a recipe without a status declaration on the text-only route', async () => {
+    const recipe = AGENT_HOST.replace(/^\[status\][\s\S]*?unreachable = 255\n/m, '')
+    const other = AGENT_HOST.replace('schema = "techne/host-workspace/v1"', 'schema = "techne/host-workspace/v9"')
+    for (const legacy of [recipe, other]) {
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(WORKSPACE_REPORT),
+        response(workspaceDocument())
+      ])
+      const cli = harness(runner, fixture({ recipes: { 'agent-host': legacy } }).environment)
+      expect(await cli.run(['host', 'status', '--json'])).toBe(0)
+      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
+        state: 'reported',
+        report: WORKSPACE_REPORT,
+        detail: null
+      })
+      expect(runner.calls).toHaveLength(3)
+    }
+  })
+
+  test('projects updates per host with --all and keeps going past a failure', async () => {
+    const setup = fixture({
+      bindings: {
+        'agent-host': binding('agent-host'),
+        zoned: binding('zoned', '[stub]\nzone = "z1"\n', 'multi').replace('recipe =', 'workspace = "w"\nrecipe =')
+      }
+    })
+    const runner = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(WORKSPACE_REPORT),
+      response(workspaceDocument('at-risk'), '', 3),
+      response('', 'down', 1)
+    ])
+    const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], [...PROVIDERS, stubProvider([])])
+    expect(await cli.run(['host', 'status', '--all', '--json'])).toBe(1)
+    const report = JSON.parse(cli.output().stdout)
+    expect(report.schema).toBe('techne/host-status-list/v1')
+    expect(report.hosts[0].workspace).toEqual({
+      state: 'reported',
+      report: WORKSPACE_REPORT,
+      detail: null,
+      updates: UPDATES
+    })
+    expect(report.hosts[1].workspace).toEqual({
+      state: 'failed',
+      report: null,
+      detail: 'harness status script failed: down'
+    })
+    expect(runner.calls).toHaveLength(5)
+  })
+})
+
 describe('recipes and new bindings', () => {
   test('lists recipes from the harness checkout, marking the selected host recipe', async () => {
     const setup = fixture()

@@ -4,13 +4,13 @@ area: CLI
 title: Host patching binding fields
 project: agent-host
 kind: deliver
-status: ready
-horizon: next
+status: awaiting-review
+horizon: now
 blocks: []
 blocked_by: []
 baseline_ref: 4a59790cbf285b256178ec75d19dd249df40513f
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-12T19:58:00Z
+updated_at: 2026-10-12T20:05:30Z
 ---
 
 # Host Patching Binding Fields
@@ -41,12 +41,12 @@ Local source inspection on 12 October 2026 used tools-techne adoption revision `
 
 ## Steps
 
-- [ ] Extend neutral binding acceptance for `reboot_window` and `livepatch`. Before generic scalar conversion, require a written window to be a string matching `^([01][0-9]|2[0-3]):[0-5][0-9]$` and written Livepatch to be a TOML boolean. Reject empty strings, weekdays, whitespace, out-of-range times, numbers, string booleans, lists and tables before any provider/subprocess call. Preserve absence; stringify explicit false as `false`, never discard it. Check any resolved recipe defaults against the same window and canonical true/false semantics without inventing new defaults.
-- [ ] Preserve the manifest-driven pass-through in `scriptEnvironment` and `Context.hostEnvironment`: the existing recipe maps the values to `AGENT_HOST_REBOOT_WINDOW` and `AGENT_HOST_LIVEPATCH` for `provision` only. Do not hard-code AWS parameters, spread the fields into every script, add provisioning grammar or invoke provisioning. Add optional typed parsing of the recipe's `[status]` schema and exit map solely to recognise its existing JSON-report capability; manifests without it keep the current text-only route.
-- [ ] Add optional structured update extraction at the Harness boundary. Keep the existing text invocation, its report, failure detail and exit decision authoritative. Only for CLI JSON status of a running host whose text report succeeded and whose manifest declares `techne/host-workspace/v1`, request one additional stub-testable status read with `--json`, the same cwd/environment and no `--fetch`. Validate JSON object, schema and outcome/exit agreement against the manifest before projecting updates; permit clean/at-risk/unknown documents with their declared exits, and reject failed/unreachable or malformed supplemental reports. A supplemental read failure or missing member leaves updates unavailable and cannot change the original workspace state, report or CLI exit. Never make this advisory read a safety verdict.
-- [ ] Project only the optional `workspace.updates` member in single-host and all-host JSON output; keep both outer schema names and existing fields/types. An omitted member stays omitted; an explicit null stays null. For an object, preserve nullable `os`, `pending`, `security`, `reboot_required`, `reboot_required_since`, `reboot_packages` and `livepatch`; accept non-negative integer counts, a boolean reboot flag, string OS/time/Livepatch state and string-list packages, each with null for unknown. Tolerate additive unknown fields without displaying raw data; reject malformed known fields as unavailable rather than coercing to zero/false. Text mode continues to use the Harness's existing Updates rendering, including security/reboot labels, with no second read or duplicated section.
-- [ ] Extend the public in-process CLI suite with isolated binding/recipe fixtures and injected runner/provider responses for the cases in Verify. Add only the patching parameter and status-declaration fixture deltas needed for this contract; retain a legacy manifest fixture and avoid importing live Harness scripts or wholesale copying its unrelated operations/profile changes.
-- [ ] Update the CLI user guide, manual and active changelog baseline for the two fields, optional JSON projection, null/unavailable semantics and unchanged exit behaviour. Inspect README, command help and Bash/Zsh completion for consistency; grammar is unchanged, so add no flags or commands. Run the declared verification and documentation gates before submitting future delivery for review.
+- [x] Extend neutral binding acceptance for `reboot_window` and `livepatch`. Before generic scalar conversion, require a written window to be a string matching `^([01][0-9]|2[0-3]):[0-5][0-9]$` and written Livepatch to be a TOML boolean. Reject empty strings, weekdays, whitespace, out-of-range times, numbers, string booleans, lists and tables before any provider/subprocess call. Preserve absence; stringify explicit false as `false`, never discard it. Check any resolved recipe defaults against the same window and canonical true/false semantics without inventing new defaults.
+- [x] Preserve the manifest-driven pass-through in `scriptEnvironment` and `Context.hostEnvironment`: the existing recipe maps the values to `AGENT_HOST_REBOOT_WINDOW` and `AGENT_HOST_LIVEPATCH` for `provision` only. Do not hard-code AWS parameters, spread the fields into every script, add provisioning grammar or invoke provisioning. Add optional typed parsing of the recipe's `[status]` schema and exit map solely to recognise its existing JSON-report capability; manifests without it keep the current text-only route.
+- [x] Add optional structured update extraction at the Harness boundary. Keep the existing text invocation, its report, failure detail and exit decision authoritative. Only for CLI JSON status of a running host whose text report succeeded and whose manifest declares `techne/host-workspace/v1`, request one additional stub-testable status read with `--json`, the same cwd/environment and no `--fetch`. Validate JSON object, schema and outcome/exit agreement against the manifest before projecting updates; permit clean/at-risk/unknown documents with their declared exits, and reject failed/unreachable or malformed supplemental reports. A supplemental read failure or missing member leaves updates unavailable and cannot change the original workspace state, report or CLI exit. Never make this advisory read a safety verdict.
+- [x] Project only the optional `workspace.updates` member in single-host and all-host JSON output; keep both outer schema names and existing fields/types. An omitted member stays omitted; an explicit null stays null. For an object, preserve nullable `os`, `pending`, `security`, `reboot_required`, `reboot_required_since`, `reboot_packages` and `livepatch`; accept non-negative integer counts, a boolean reboot flag, string OS/time/Livepatch state and string-list packages, each with null for unknown. Tolerate additive unknown fields without displaying raw data; reject malformed known fields as unavailable rather than coercing to zero/false. Text mode continues to use the Harness's existing Updates rendering, including security/reboot labels, with no second read or duplicated section.
+- [x] Extend the public in-process CLI suite with isolated binding/recipe fixtures and injected runner/provider responses for the cases in Verify. Add only the patching parameter and status-declaration fixture deltas needed for this contract; retain a legacy manifest fixture and avoid importing live Harness scripts or wholesale copying its unrelated operations/profile changes.
+- [x] Update the CLI user guide, manual and active changelog baseline for the two fields, optional JSON projection, null/unavailable semantics and unchanged exit behaviour. Inspect README, command help and Bash/Zsh completion for consistency; grammar is unchanged, so add no flags or commands. Run the declared verification and documentation gates before submitting future delivery for review.
 
 ## Files touched
 
@@ -103,6 +103,48 @@ Document top-level TOML fields, HH:MM host-local semantics, strict boolean Livep
 ### Roadmap
 
 Enrich this existing record only. Decision 42 moves it to Ready at Next with its baseline at `4a59790cbf285b256178ec75d19dd249df40513f`. Add no record, change no held record and claim no closure.
+
+## Review
+
+### Delivered
+
+Delivered the approved boundary locally under Decision 42, from baseline `4a59790cbf285b256178ec75d19dd249df40513f` through the record-only Ready commit `293a6c1`: an `agent-host` binding accepts optional `reboot_window` (24-hour `HH:MM`) and `livepatch` (TOML boolean) fields, the recipe's declared parameters pass them only to the scripts that list them, and `techne host status --json` projects the status document's optional `updates` member as `workspace.updates` from one advisory supplemental read. Excluded as planned: the Harness recipe and scripts, Ubuntu Pro and token handling, provisioning grammar, `--fetch`, guarded commands, and every remote, provider or host operation. Live verification on vega was not performed and waits for the owner-led rebuild.
+
+### Change Summary
+
+- [src/bindings.ts](../../src/bindings.ts): adds both fields to `NEUTRAL_FIELDS`; refuses a non-string or malformed window and a non-boolean Livepatch before any provider table or subprocess, and checks resolved recipe defaults against the same forms. Explicit `false` becomes `"false"`; absence stays absent. Environment derivation is unchanged.
+- [src/recipes.ts](../../src/recipes.ts): parses an optional `[status]` declaration (required `schema`, integer `exit` map from 0 to 255) as `Recipe.status`, null when absent.
+- [src/harness.ts](../../src/harness.ts): adds `HostUpdates` and `HarnessCheckout.workspaceUpdates`, which runs the status script once with `--json` (same cwd and environment, no `--fetch`) only for a `techne/host-workspace/v1` declaration. It accepts only a JSON object of that schema whose `clean`, `at-risk` or `unknown` outcome matches its declared exit, then requires all seven known fields with their nullable types; additive fields are dropped. Any other result, including runner rejection, leaves updates unavailable.
+- [src/cli.ts](../../src/cli.ts): `statusOf` requests updates only for JSON output and a reported workspace; text mode keeps the single read and the Harness's own Updates section. Outer schemas, existing fields, state and exit decisions are unchanged.
+- [src/tests/cli.test.ts](../../src/tests/cli.test.ts) and the [agent-host fixture](../../src/tests/fixtures/agent-host.recipe.toml): 12 public `runCli` cases; the fixture gains the `[status]` declaration and both optional parameters with Harness `11adc5d` provenance. Legacy text-only behaviour is exercised by removing the declaration or changing its schema, and by the unchanged `multi` fixture.
+- [Agent-host user guide](../guides/user/agent-host.md), [man/techne.1](../../man/techne.1) and [CHANGELOG.md](../../CHANGELOG.md): patching settings, build-time application, JSON projection, null and unavailable semantics, and unchanged exit behaviour. README, command help and Bash/Zsh completion were inspected and need no change because the grammar is unchanged.
+
+No approved deviation. One implementation choice within the plan: a known update field that is missing makes the whole member unavailable, as for a malformed one, rather than being projected as null.
+
+### Verification
+
+All run from the repository root with the pinned Bun, after integration:
+
+- `bun run test`: 101 passed, 0 failed.
+- `bun run test:coverage`: 101 passed; 100% statements, branches, functions and lines.
+- `bun run self:typecheck`, `bun run build`, `bun run self:release:test`, `bun run ki:tools:lint-man`, `bunx biome check .`, `bunx rumdl check .` and `git diff --check`: all exit 0.
+- The edited manual renders through `mandoc` and passes `mandoc -Tlint` without findings.
+- `ki repo audit` with `ki-work`, `ki-work-roadmap`, `ki-authoring` and `ki-repo-tools`: PASS. `ki-engineering` and the full declared audit: no failures, with only the two existing warnings (inline CI `KI_VERSION`; no committed `.githooks/pre-commit`), left unchanged as planned.
+- Tests use the fake runner and stub provider only; no AWS, SSH, Tailscale, Ubuntu Pro or host script ran.
+
+### Outstanding concerns
+
+- Live behaviour against a rebuilt vega host is unverified until the owner-led rebuild supplies a real status document.
+- The JSON route reads status twice per running host, so the text report and `updates` may observe slightly different moments; this is the accepted cost recorded under Adapter compatibility choice.
+- The fixture is a vendored subset of Harness `11adc5d`; a later Harness change to the update fields or exit map needs this adapter re-grounded.
+
+### Post-change review
+
+The goal is met within scope: both fields are accepted only in their documented forms, reach only declaring scripts, and the optional `updates` member appears in single-host and `--all` JSON without altering any existing field, schema, text output, state or exit decision. Regression risk is low: existing tests pass unchanged, the extra read is confined to JSON status of a running host with a reported workspace and a declaring recipe, and every failure of that read is silent and bounded to one call. The record is ready for owner review; acceptance should note that live verification remains pending.
+
+### Mini recap
+
+Implemented host patching binding fields and the advisory JSON `updates` projection in tools-techne with stubbed tests; every declared gate passed with full coverage and only the two existing audit warnings. Concern: live verification awaits the vega rebuild. Proposed learning route, not promoted: the advisory-supplemental-read pattern (primary read authoritative, secondary read silently optional) could be noted in the developer guide if later status work reuses it.
 
 ## Discussion
 

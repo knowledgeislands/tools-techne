@@ -13,7 +13,19 @@ import {
 import { isTable, optionalString, readToml, requiredString, scalarText, type TomlTable } from './toml.ts'
 
 export const BINDING_SCHEMA = 'techne/host-binding/v1'
-export const NEUTRAL_FIELDS = ['host_name', 'tailscale_name', 'tailscale_tag', 'repositories', 'workspace'] as const
+export const NEUTRAL_FIELDS = [
+  'host_name',
+  'tailscale_name',
+  'tailscale_tag',
+  'repositories',
+  'workspace',
+  'reboot_window',
+  'livepatch'
+] as const
+// A daily host-local reboot time, 24-hour HH:MM with no weekday.
+const REBOOT_WINDOW = /^([01][0-9]|2[0-3]):[0-5][0-9]$/
+const WINDOW_FORM = 'reboot_window must be a 24-hour HH:MM time, such as "04:00"'
+const LIVEPATCH_FORM = 'livepatch must be true or false'
 const BINDING_NAME = /^[a-z0-9][a-z0-9-]*$/
 const HOSTS = 'hosts'
 const CONFIG = 'config.toml'
@@ -89,6 +101,18 @@ export function readSettings(directory: string, providers: readonly ProviderSche
   return { directory, defaultHost: optionalString(table, 'default_host', path), controller }
 }
 
+// The patching fields accept one form each, written or resolved from a recipe default.
+function checkPatching(values: Readonly<Record<string, string>>, where: string): void {
+  const window = values['reboot_window']
+  if (window !== undefined && !REBOOT_WINDOW.test(window)) {
+    throw new TechneError(`${where}: ${WINDOW_FORM}`)
+  }
+  const livepatch = values['livepatch']
+  if (livepatch !== undefined && livepatch !== 'true' && livepatch !== 'false') {
+    throw new TechneError(`${where}: ${LIVEPATCH_FORM}`)
+  }
+}
+
 function readBinding(
   path: string,
   fileName: string,
@@ -99,6 +123,13 @@ function readBinding(
   if (table['schema'] !== BINDING_SCHEMA) throw new TechneError(`${path}: schema must be "${BINDING_SCHEMA}"`)
   const name = requiredString(table, 'name', path)
   if (name !== fileName) throw new TechneError(`${path}: name ${name} does not match the file name ${fileName}`)
+  const window = table['reboot_window']
+  if (window !== undefined && (typeof window !== 'string' || !REBOOT_WINDOW.test(window))) {
+    throw new TechneError(`${path}: ${WINDOW_FORM}`)
+  }
+  if (table['livepatch'] !== undefined && typeof table['livepatch'] !== 'boolean') {
+    throw new TechneError(`${path}: ${LIVEPATCH_FORM}`)
+  }
   const providerTables = Object.keys(table).filter((key) => isTable(table[key]))
   refuseUnknown(
     table,
@@ -133,6 +164,7 @@ function readBinding(
     record(`${providerName}.${field}`, value, `${path}: ${providerName}.${field}`)
   }
   const values = resolveValues(name, written, recipe, providerName, path)
+  checkPatching(values, path)
   for (const field of NEUTRAL_FIELDS) {
     if (values[field] === undefined && recipe.parameters[field]?.required) {
       throw new TechneError(`${path}: ${field} is required by recipe ${recipe.name}`)

@@ -16,6 +16,8 @@ All notable changes to `techne` are recorded here.
 - `techne recipe list|show`, `techne host list|add` and `techne host status --all`.
 - Host selection by `--host`, `TECHNE_HOST`, `default_host` or the only binding.
 - Recipe-driven AWS selectors, script environment and teardown footprint, through a provider adapter contract.
+- Optional `reboot_window` (a 24-hour `HH:MM`) and `livepatch` (a boolean) binding fields for the agent-host recipe's patching, passed only to the scripts that declare them.
+- `host status --json` adds the status document's optional `updates` member as `workspace.updates` when the recipe declares one; it is advisory and never changes the workspace state or exit status.
 
 ### Fixed
 

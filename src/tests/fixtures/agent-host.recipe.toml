@@ -1,4 +1,5 @@
 # Vendored from ki-techne-harness b37b16c recipes/direct-host/recipe.toml, since renamed agent-host (db399b8); tests read it as the harness's own manifest.
+# The [status] declaration and the reboot_window and livepatch parameters follow ki-techne-harness 11adc5d.
 # The agent-host recipe (KI-ARCADIA-GOV-025, TECHNE-TOOLS-OPS-012): an agent
 # host whose agents run on the host itself. A binding names one supported
 # provider by its provider table; every binding value reaches the scripts only
@@ -27,6 +28,16 @@ footprint = [
 [paths]
 setup = "operations/aws/agent-host/setup.sh"
 status = "operations/aws/agent-host/status.sh"
+
+[status]
+schema = "techne/host-workspace/v1"
+
+[status.exit]
+clean = 0
+failed = 1
+at-risk = 3
+unknown = 4
+unreachable = 255
 
 [parameters.host_name]
 summary = "Operating-system host name and resource name"
@@ -57,6 +68,18 @@ summary = "Workspace root on the host; a leading ~/ is the operator's home there
 default = "~/workspaces/kit"
 env = "KI_AGENT_HOST_WORKSPACE"
 scripts = ["setup", "status"]
+
+[parameters.reboot_window]
+summary = "Daily host-local time, a 24-hour HH:MM, at which the host restarts itself when a reboot is required and nobody is logged in"
+optional = true
+env = "AGENT_HOST_REBOOT_WINDOW"
+scripts = ["provision"]
+
+[parameters.livepatch]
+summary = "Whether critical kernel fixes go live without a restart, through the provider's Livepatch where it has one"
+optional = true
+env = "AGENT_HOST_LIVEPATCH"
+scripts = ["provision"]
 
 [providers.aws]
 summary = "One EC2 instance in its own VPC, built by a CloudFormation stack"

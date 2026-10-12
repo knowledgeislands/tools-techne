@@ -96,6 +96,16 @@ script from the harness checkout and print its workspace report unchanged;
 JSON output carries it in a
 .B workspace
 object.
+When the recipe declares the
+.B techne/host-workspace/v1
+status document, JSON output also carries its optional
+.B updates
+member as
+.BR workspace.updates ,
+read once more with
+.BR --json ;
+it is left out when that read fails or is malformed, and never changes the
+workspace state or exit status.
 .B --all
 reports every binding and cannot be combined with
 .B --host
@@ -265,6 +275,17 @@ One host binding: schema
 .BR recipe ,
 optional recipe parameters and exactly one provider table, such as
 .BR [aws] .
+For the agent-host recipe,
+.B reboot_window
+is a 24-hour
+.I HH:MM
+host-local time and
+.B livepatch
+is
+.B true
+or
+.BR false ;
+both are optional and reach a host only when it is next built.
 .SH ENVIRONMENT
 \&
 .TP
