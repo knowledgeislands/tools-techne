@@ -10,7 +10,7 @@ blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-12T07:13:22Z
+updated_at: 2026-10-12T08:34:04Z
 ---
 
 # Host Patching Binding Fields
@@ -82,6 +82,8 @@ This draft plan's verification is source/contract review, roadmap/authoring/full
 
 `blocks: []`, `blocked_by: []` and `baseline_ref: null` remain unchanged. The existing Harness recipe and status scripts supply the required contract; no new upstream deliverable is needed. The [operator guide](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#patching-and-restart) owns actual patching/restart operation. This record does not depend on delivery or acceptance of the [held guarded-host record](KI-TOOL-TECHNE-CLI-006-guarded-host-commands.md). Both eventually touch status files, so serialize future writers and re-ground this plan if that work lands first; this is sequencing, not a build dependency.
 
+Kris's 12 October steering sets recreation of the agent host as `vega` before taking this item forward. That owner-led live rebuild, correct binding/payload identity and host-readiness evidence are an operational prerequisite for the requested delivery order. The [operator runbook](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md) owns creation and setup; no live operation is added to this record's local implementation tests. Keep the binding/recipe identity `agent-host` separate from OS and Tailscale hostname `vega`. This desired ordering does not change `blocked_by: []` into a cross-repository work-record dependency or authorise the rebuild.
+
 Decision 11 releases local planning of this record only. The [Techne Programme Hold](https://github.com/knowledgeislands/ki-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md) and this task exclude every remote/provider/host operation. Kris must separately review the plan before Ready and authorise future implementation. No tests or source are changed by planning, no acceptance authority is claimed, and all other agent-host work stays held under its own owner.
 
 ## Documentation impact
@@ -115,3 +117,7 @@ On 12 October 2026, Kris approved the recommendation: "I approve your recommenda
 ### Adapter compatibility choice
 
 The existing CLI guarantees a Harness text report, including workstation pin signals, whereas the Harness JSON route emits a different document. Replacing the text read with JSON would change `workspace.report`, its rendering and existing failure semantics, overlapping held guarded-command work. The bounded plan therefore keeps text mode unchanged and adds one advisory JSON read only for JSON consumers with a declared contract. This costs a second read for those consumers and the two reports can observe different moments; optional updates never adjudicate workspace safety or change an exit decision. A later owner-approved status redesign can remove that duplication in its own scope. No `--fetch`, provisioning route, guarded stop/rebuild/withdraw or teardown transition is included here.
+
+### Host-first ordering
+
+On 12 October 2026, Kris said: "KI-TOOL-TECHNE-CLI-008 - we would need to create the agent-host again first. This time we can use the new vega hostname", followed by "try now" (tools-burndown Decision 13). The read-only readiness retry and local rebuild brief do not approve this implementation plan or authorise remote changes. The plan remains draft Next with a null execution baseline until the host-first prerequisite and separate plan approval are satisfied; other owner holds remain intact.
