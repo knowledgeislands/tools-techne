@@ -1,5 +1,5 @@
 ---
-id: KI-TECHNE-TOOL-CLI-006
+id: KI-TOOL-TECHNE-CLI-006
 area: CLI
 title: Guarded host commands
 project: agent-host

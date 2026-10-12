@@ -17,7 +17,7 @@ repository = "https://github.com/knowledgeislands/tools-techne"
 title = "techne"
 capital = "https://github.com/knowledgeislands/ki-principal"
 description = "Techne operator command-line interface."
-repo_code = "KI-TECHNE-TOOL"
+repo_code = "KI-TOOL-TECHNE"
 supported_runtimes = [
   "claude-code",
   "claude-desktop",
