@@ -14,10 +14,10 @@ harnesses = [
 repo_type = "project"
 primary_shape = "ki-repo-tools"
 repository = "https://github.com/knowledgeislands/tools-techne"
-title = "tools-techne"
-capital = "https://github.com/knowledgeislands/ki-arcadia-principal"
+title = "techne"
+capital = "https://github.com/knowledgeislands/ki-principal"
 description = "Techne operator command-line interface."
-repo_code = "TECHNE-TOOL"
+repo_code = "KI-TECHNE-TOOL"
 supported_runtimes = [
   "claude-code",
   "claude-desktop",

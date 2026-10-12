@@ -1,4 +1,4 @@
-# AGENTS.md — tools-techne
+# AGENTS.md — techne
 
 `tools-techne` is the independently released operator command-line interface for the Techne Harness. [README.md](README.md) is the user-facing entry point; this file contains only standing contribution context.
 

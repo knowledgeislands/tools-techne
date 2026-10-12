@@ -1,5 +1,5 @@
 ---
-id: TECHNE-TOOL-CLI-008
+id: KI-TECHNE-TOOL-CLI-008
 area: CLI
 title: Host patching binding fields
 project: agent-host

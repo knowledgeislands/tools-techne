@@ -1,4 +1,4 @@
-# tools-techne
+# techne
 
 `tools-techne` is the canonical source of the `techne` operator command-line interface for the Knowledge Islands Techne Harness.
 
