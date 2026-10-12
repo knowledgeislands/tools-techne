@@ -1418,7 +1418,7 @@ describe('host bindings and selection', () => {
     const absent = harness(new FakeRunner([]), { HOME: '/nowhere', XDG_CONFIG_HOME: '/nowhere/config' })
     expect(await absent.run(['recipe', 'list'])).toBe(1)
     expect(absent.output().stderr).toContain(
-      'ki-techne-harness checkout not found at /nowhere/workspaces/kit/knowledgeislands/ki-techne-harness'
+      'ki-techne-harness checkout not found at /nowhere/workspaces/knowledge-islands/ki-techne-harness'
     )
   })
 })

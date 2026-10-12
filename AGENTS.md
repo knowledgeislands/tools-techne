@@ -4,7 +4,7 @@
 
 ## Authority
 
-Arcadia owns architectural roles, invariants and decision criteria. `tools-techne` owns the public `techne` command grammar, diagnostics, installation and release artifacts. The Techne Harness owns controller and fabric applications, infrastructure, runtime payloads and provider adapters. The [implementation ownership decision (ADR-KI-ARCADIA-006)](https://github.com/knowledgeislands/ki-arcadia-principal/blob/main/Admin/Governance/Decisions/ADR-KI-ARCADIA-006-techne-implementation-ownership.md) defines this boundary.
+Arcadia owns architectural roles, invariants and decision criteria. `tools-techne` owns the public `techne` command grammar, diagnostics, installation and release artifacts. The Techne Harness owns controller and fabric applications, infrastructure, runtime payloads and provider adapters. The [implementation ownership decision (ADR-KI-PRINCIPAL-006)](https://github.com/knowledgeislands/ki-principal/blob/main/Admin/Governance/Decisions/ADR-KI-PRINCIPAL-006-techne-implementation-ownership.md) defines this boundary.
 
 ## Working contract
 
@@ -20,8 +20,8 @@ Use `ki-repo-tools` for shared CLI and delivery policy, `ki-engineering` for the
 - Arcadia Principal, the KI Agentic Harness, `tools-ki`, KI Specifications, the KI Website, the Techne Harness, and `tools-techne` may add a concrete handoff item to one another's Stream or roadmap. The receiving repository owns its priority, plan, and execution.
 - A handoff names the originating repository, states the need in plain terms, and says in plain words whether it blocks work there. Link only durable documentation, such as guides, specifications or manifests; never link to or cite another repository's roadmap record or its identifier, because records are pruned and such links break.
 - Prefer independently executable, non-blocking work. Mark an item as blocking only when it is a genuine prerequisite; otherwise let the receiving repository schedule it in its own horizon.
-- A handoff transfers no ownership: ADR-KI-ARCADIA-006 still decides what this repository owns.
+- A handoff transfers no ownership: ADR-KI-PRINCIPAL-006 still decides what this repository owns.
 
 ## Remote-environment hold
 
-There is no general hold on local Techné implementation, architecture work, testing or branch integration. Keep the tool building and current with its declared KI engineering and tool-repository standards. The hold concerns managing remote environments, including remote-agent or infrastructure rollout and changes to running services. Do not treat a Ready record or task approval as authority for remote-environment operations. Preserve existing remote services and state until the principal explicitly authorises their management under a remote-delivery policy. Arcadia owns the scope and restart criteria in [Techne Programme Hold](https://github.com/knowledgeislands/ki-arcadia-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md).
+There is no general hold on local Techné implementation, architecture work, testing or branch integration. Keep the tool building and current with its declared KI engineering and tool-repository standards. The hold concerns managing remote environments, including remote-agent or infrastructure rollout and changes to running services. Do not treat a Ready record or task approval as authority for remote-environment operations. Preserve existing remote services and state until the principal explicitly authorises their management under a remote-delivery policy. Arcadia owns the scope and restart criteria in [Techne Programme Hold](https://github.com/knowledgeislands/ki-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md).

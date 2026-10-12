@@ -31,7 +31,7 @@ export interface OptionCatalogue {
   readonly options: readonly { name: string }[]
 }
 
-const HARNESS_CHECKOUT = 'workspaces/kit/knowledgeislands/ki-techne-harness'
+const HARNESS_CHECKOUT = 'workspaces/knowledge-islands/ki-techne-harness'
 
 type ValueKey = 'harnessDir' | 'host' | 'recipe' | 'provider'
 

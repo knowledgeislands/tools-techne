@@ -6,7 +6,7 @@ An agent host is described by a binding file you keep on your machine, which nam
 
 ## Before you start
 
-Techne reads recipes from a local Techne Harness checkout, found by `--harness-dir`, then `TECHNE_HARNESS_DIR`, then `~/workspaces/kit/knowledgeislands/ki-techne-harness`. Keep the checkout current with `git pull`; the recipes and scripts run as they are in it. List them with:
+Techne reads recipes from a local Techne Harness checkout, found by `--harness-dir`, then `TECHNE_HARNESS_DIR`, then `~/workspaces/knowledge-islands/ki-techne-harness`. Keep the checkout current with `git pull`; the recipes and scripts run as they are in it. List them with:
 
 ```sh
 techne recipe list

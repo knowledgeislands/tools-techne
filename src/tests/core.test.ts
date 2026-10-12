@@ -58,7 +58,7 @@ describe('invocation parsing', () => {
       version: true,
       json: false,
       command: [],
-      harnessDir: '/home/k/workspaces/kit/knowledgeislands/ki-techne-harness',
+      harnessDir: '/home/k/workspaces/knowledge-islands/ki-techne-harness',
       providerOptions: []
     })
     expect(parseInvocation([], {}, PROVIDERS).harnessDir).toBe('')
