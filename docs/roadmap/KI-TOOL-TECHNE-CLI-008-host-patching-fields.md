@@ -4,13 +4,13 @@ area: CLI
 title: Host patching binding fields
 project: agent-host
 kind: deliver
-status: draft
+status: ready
 horizon: next
 blocks: []
 blocked_by: []
-baseline_ref: null
+baseline_ref: 4a59790cbf285b256178ec75d19dd249df40513f
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-12T17:09:04Z
+updated_at: 2026-10-12T19:58:00Z
 ---
 
 # Host Patching Binding Fields
@@ -32,7 +32,7 @@ The `agent-host` recipe in `ki-techne-harness` now makes OS patching part of the
 
 ## Current state
 
-Local source inspection on 12 October 2026 used tools-techne adoption revision `633bbc0953a049ba503cb232a3473e289e6ca4a4` and the clean local ki-techne-harness checkout at `11adc5d625d102f808d306002916457116595264`. Re-read both contracts before future implementation; these observations are planning evidence, not an execution baseline.
+Local source inspection on 12 October 2026 used tools-techne adoption revision `633bbc0953a049ba503cb232a3473e289e6ca4a4` and the clean local ki-techne-harness checkout at `11adc5d625d102f808d306002916457116595264`. Re-read both contracts before future implementation; these observations are planning evidence, not an execution baseline. Re-grounding for the Ready transition on 12 October 2026 found no drift: `src/` is unchanged from the adoption revision to `4a59790cbf285b256178ec75d19dd249df40513f`, the Harness checkout is still clean at `11adc5d625d102f808d306002916457116595264`, and its recipe, status exit map and seven nullable `updates` fields match the observations below.
 
 - [Binding loading](../../src/bindings.ts) has a fixed neutral-field whitelist. `scalarText` accepts several scalar types, so adding names alone would wrongly accept strings or numbers as Livepatch booleans. Resolved binding values and provider adapters already carry strings; `scriptEnvironment` selects only manifest-declared environment names and script memberships.
 - [Recipe parsing](../../src/recipes.ts) reads parameters and paths but currently discards the manifest's `[status]` schema/exit declaration. The existing test manifest predates both patching parameters and that declaration. No public `host provision` command exists: this work must not add one or imply that editing a binding changes a running host.
@@ -74,13 +74,13 @@ Future implementation tests must enter through `runCli(args, dependencies)` with
 
 Run the pinned root Bun gates from the [definition of done](../guides/developer/definition-of-done.md): `bun run test`, `bun run test:coverage`, `bun run self:typecheck`, `bun run build`, `bun run self:release:test`, `bun run ki:tools:lint-man`, `bunx biome check .`, `bunx rumdl check .` and `git diff --check`. Verify frozen root/boundary dependencies are present before those checks; install only with separately available local dependencies, without remote/provider operations. Include the existing boundary, CLI inventory/help/completion and isolated installer/package suites; render/read the edited manual. Packaging tests create local fixtures, not a release.
 
-Run the work-selector, roadmap, authoring, engineering, tool-repository and full declared repository audits. During tools-burndown, every ki invocation must be prefixed with `python3 /Users/krisbrown/.local/state/ki/agents/tools-burndown/coordination/run-ki.py`, followed by `ki` or the backup executable, and exact managed configuration must be restored after hook rewrites too. Audit before planning found no failures and two existing warnings: inline CI KI_VERSION and the absent committed `.githooks/pre-commit` gate; report these unchanged rather than repair unrelated files. Native Husky hooks still run normally.
+Run the work-selector, roadmap, authoring, engineering, tool-repository and full declared repository audits. The tools-burndown `run-ki.py` wrapper requirement applied only to that finished run; call `ki` normally. Audit before planning found no failures and two existing warnings: inline CI KI_VERSION and the absent committed `.githooks/pre-commit` gate; report these unchanged rather than repair unrelated files. Native Husky hooks still run normally.
 
 This draft plan's verification is source/contract review, roadmap/authoring/full audits, immutable-metadata and monotonic-timestamp predicates, source-drift checks, explicit-path diff review and normal hooks. Implementation test cases above are planned, not authored or claimed to have passed.
 
 ## Dependencies / blocks
 
-`blocks: []`, `blocked_by: []` and `baseline_ref: null` remain unchanged. The existing Harness recipe and status scripts supply the required contract; no new upstream deliverable is needed. The [operator guide](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#patching-and-restart) owns actual patching/restart operation. This record does not depend on delivery or acceptance of the [held guarded-host record](KI-TOOL-TECHNE-CLI-006-guarded-host-commands.md). Both eventually touch status files, so serialize future writers and re-ground this plan if that work lands first; this is sequencing, not a build dependency.
+`blocks: []` and `blocked_by: []` remain unchanged; the Ready transition sets `baseline_ref` to the revision it was planned against. The existing Harness recipe and status scripts supply the required contract; no new upstream deliverable is needed. The [operator guide](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#patching-and-restart) owns actual patching/restart operation. This record does not depend on delivery or acceptance of the [held guarded-host record](KI-TOOL-TECHNE-CLI-006-guarded-host-commands.md). Both eventually touch status files, so serialize future writers and re-ground this plan if that work lands first; this is sequencing, not a build dependency.
 
 Kris's 12 October steering sets recreation of the agent host as `vega` before taking this item forward. That owner-led live rebuild, correct binding/payload identity and host-readiness evidence are an operational prerequisite for the requested delivery order. The [operator runbook](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md) owns creation and setup; no live operation is added to this record's local implementation tests. Keep the binding/recipe identity `agent-host` separate from OS and Tailscale hostname `vega`. This desired ordering does not change `blocked_by: []` into a cross-repository work-record dependency or authorise the rebuild.
 
@@ -102,7 +102,7 @@ Document top-level TOML fields, HH:MM host-local semantics, strict boolean Livep
 
 ### Roadmap
 
-Enrich this existing record only, retaining draft Next and its null baseline. Add no record, change no held record and claim no execution or closure. Decision 15 supplies local plan/implementation approval; future Ready/delivery still waits for the vega-first gate or explicit owner approval of parallel local implementation.
+Enrich this existing record only. Decision 42 moves it to Ready at Next with its baseline at `4a59790cbf285b256178ec75d19dd249df40513f`. Add no record, change no held record and claim no closure.
 
 ## Discussion
 
@@ -127,3 +127,7 @@ On 12 October 2026, Kris said: "KI-TOOL-TECHNE-CLI-008 - we would need to create
 On 12 October 2026, Kris replied "sure" to the already-published local plan/implementation (tools-burndown Decision 15). This records approval of the existing Steps, Files touched and Verify without replanning their scope. The pending async ordering question has no answer in the current run decisions/steering, so the earlier vega-first instruction remains in force. The current Techne agent-host checkpoint contains only a historical missing-host snapshot and an owner-led rebuild/readiness sequence, not completed vega readiness evidence. No live verification is performed here.
 
 This record is independently eligible for later Ready and local implementation only after the owner supplies current vega readiness evidence or explicitly approves parallel local implementation. Plan approval itself is already satisfied; do not request it again. No Ready transition or implementation occurs in this planning lane. The existing Harness contract is present and there is no build dependency on guarded commands. Serialize future source writers; prefer this approved implementation first after its ordering gate clears, then re-ground the newly planned guarded status integration. If guarded commands land first, review the resulting status-contract reconciliation before implementing this record; approval/order recording here does not change its implementation scope or imply ki-batch authority.
+
+### Parallel local implementation approval
+
+On 12 October 2026, Kris explicitly approved parallel local implementation before the vega rebuild (Techne Decision 42, recording handover state-of-play Decision 142). This lifts the host-first ordering gate for local work only: the record moves to Ready and may be implemented in tools-techne with stubbed tests, stopping at awaiting-review. Live verification still waits for the owner-led vega rebuild and its readiness evidence. No AWS, SSH, Tailscale, Ubuntu Pro or host action is authorised, and the Techne Programme Hold is otherwise unchanged. The guarded-host record is still draft, so this record lands first and the guarded work re-grounds against it.
