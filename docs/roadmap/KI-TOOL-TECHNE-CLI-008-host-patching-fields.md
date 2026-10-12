@@ -10,7 +10,7 @@ blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-12T08:34:04Z
+updated_at: 2026-10-12T17:09:04Z
 ---
 
 # Host Patching Binding Fields
@@ -84,7 +84,7 @@ This draft plan's verification is source/contract review, roadmap/authoring/full
 
 Kris's 12 October steering sets recreation of the agent host as `vega` before taking this item forward. That owner-led live rebuild, correct binding/payload identity and host-readiness evidence are an operational prerequisite for the requested delivery order. The [operator runbook](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md) owns creation and setup; no live operation is added to this record's local implementation tests. Keep the binding/recipe identity `agent-host` separate from OS and Tailscale hostname `vega`. This desired ordering does not change `blocked_by: []` into a cross-repository work-record dependency or authorise the rebuild.
 
-Decision 11 releases local planning of this record only. The [Techne Programme Hold](https://github.com/knowledgeislands/ki-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md) and this task exclude every remote/provider/host operation. Kris must separately review the plan before Ready and authorise future implementation. No tests or source are changed by planning, no acceptance authority is claimed, and all other agent-host work stays held under its own owner.
+Decision 11 releases local planning of this record only. The [Techne Programme Hold](https://github.com/knowledgeislands/ki-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Hold.md) and this task exclude every remote/provider/host operation. Decision 15 approves the published local plan/implementation; the owner-requested vega-first ordering remains pending while the explicit ordering question is unanswered. This planning lane makes no Ready transition or source change. No tests or source are changed by planning, no acceptance authority is claimed, and all other agent-host work stays held under its own owner.
 
 ## Documentation impact
 
@@ -102,7 +102,7 @@ Document top-level TOML fields, HH:MM host-local semantics, strict boolean Livep
 
 ### Roadmap
 
-Enrich this existing record only, retaining draft Next and its null baseline. Add no record, change no held record and claim no execution or closure. Future Ready/delivery transitions require their own authority.
+Enrich this existing record only, retaining draft Next and its null baseline. Add no record, change no held record and claim no execution or closure. Decision 15 supplies local plan/implementation approval; future Ready/delivery still waits for the vega-first gate or explicit owner approval of parallel local implementation.
 
 ## Discussion
 
@@ -120,4 +120,10 @@ The existing CLI guarantees a Harness text report, including workstation pin sig
 
 ### Host-first ordering
 
-On 12 October 2026, Kris said: "KI-TOOL-TECHNE-CLI-008 - we would need to create the agent-host again first. This time we can use the new vega hostname", followed by "try now" (tools-burndown Decision 13). The read-only readiness retry and local rebuild brief do not approve this implementation plan or authorise remote changes. The plan remains draft Next with a null execution baseline until the host-first prerequisite and separate plan approval are satisfied; other owner holds remain intact.
+On 12 October 2026, Kris said: "KI-TOOL-TECHNE-CLI-008 - we would need to create the agent-host again first. This time we can use the new vega hostname", followed by "try now" (tools-burndown Decision 13). The read-only readiness retry and local rebuild brief do not approve this implementation plan or authorise remote changes. Decision 15 subsequently approves the published local plan/implementation. The plan remains draft Next with a null execution baseline until the host-first prerequisite is satisfied or Kris explicitly permits parallel local implementation; other owner holds remain intact.
+
+### Published plan approval and remaining gate
+
+On 12 October 2026, Kris replied "sure" to the already-published local plan/implementation (tools-burndown Decision 15). This records approval of the existing Steps, Files touched and Verify without replanning their scope. The pending async ordering question has no answer in the current run decisions/steering, so the earlier vega-first instruction remains in force. The current Techne agent-host checkpoint contains only a historical missing-host snapshot and an owner-led rebuild/readiness sequence, not completed vega readiness evidence. No live verification is performed here.
+
+This record is independently eligible for later Ready and local implementation only after the owner supplies current vega readiness evidence or explicitly approves parallel local implementation. Plan approval itself is already satisfied; do not request it again. No Ready transition or implementation occurs in this planning lane. The existing Harness contract is present and there is no build dependency on guarded commands. Serialize future source writers; prefer this approved implementation first after its ordering gate clears, then re-ground the newly planned guarded status integration. If guarded commands land first, review the resulting status-contract reconciliation before implementing this record; approval/order recording here does not change its implementation scope or imply ki-batch authority.
