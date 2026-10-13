@@ -4,13 +4,12 @@ area: CLI
 title: Host patching binding fields
 project: agent-host
 kind: deliver
-status: awaiting-review
-horizon: now
+status: done
 blocks: []
 blocked_by: []
 baseline_ref: 4a59790cbf285b256178ec75d19dd249df40513f
 created_at: 2026-10-09T15:42:04Z
-updated_at: 2026-10-12T20:05:30Z
+updated_at: 2026-10-13T22:50:23Z
 ---
 
 # Host Patching Binding Fields
@@ -146,6 +145,10 @@ The goal is met within scope: both fields are accepted only in their documented 
 
 Implemented host patching binding fields and the advisory JSON `updates` projection in tools-techne with stubbed tests; every declared gate passed with full coverage and only the two existing audit warnings. Concern: live verification awaits the vega rebuild. Proposed learning route, not promoted: the advisory-supplemental-read pattern (primary read authoritative, secondary read silently optional) could be noted in the developer guide if later status work reuses it.
 
+## Done
+
+Accepted 2026-10-13 by Kris Brown on the review packet above.
+
 ## Discussion
 
 ### Pairing
@@ -173,3 +176,7 @@ This record is independently eligible for later Ready and local implementation o
 ### Parallel local implementation approval
 
 On 12 October 2026, Kris explicitly approved parallel local implementation before the vega rebuild (Techne Decision 42, recording handover state-of-play Decision 142). This lifts the host-first ordering gate for local work only: the record moves to Ready and may be implemented in tools-techne with stubbed tests, stopping at awaiting-review. Live verification still waits for the owner-led vega rebuild and its readiness evidence. No AWS, SSH, Tailscale, Ubuntu Pro or host action is authorised, and the Techne Programme Hold is otherwise unchanged. The guarded-host record is still draft, so this record lands first and the guarded work re-grounds against it.
+
+### Acceptance
+
+On 13 October 2026, Kris accepted this record via `ki-accept` without pruning (Techne Decision 43). Live verification against a real host waits for the owner-led vega rebuild and is not part of acceptance; it is not authorised here, and the Techne Programme Hold is unchanged.
