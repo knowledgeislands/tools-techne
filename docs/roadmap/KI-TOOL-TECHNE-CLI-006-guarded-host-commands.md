@@ -5,12 +5,16 @@ title: Guarded host commands
 project: agent-host
 kind: deliver
 status: draft
-horizon: next
+horizon: hold
+hold:
+  reason: waiting-for
+  condition: Agent-host work resumes under the Techne Programme Hold
+  review: 2026-11-12
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-12T17:09:04Z
+updated_at: 2026-10-14T13:22:16Z
 ---
 
 # Guarded Host Commands
@@ -104,3 +108,7 @@ On 12 October 2026, Kris approved the recommendation in the tools-burndown run: 
 ### Local planning release
 
 On 12 October 2026, Kris said "lets get it out of the way" in the tools-burndown run, explicitly releasing this record for local planning toward delivery. The destination is deliver/draft Next with the hold removed. This releases canonical planning only: the resulting plan must be reviewed before Ready or implementation, and the execution baseline remains null. It grants no acceptance, release or live operation and does not resume other agent-host work.
+
+### Hold
+
+On 14 October 2026 Kris approved the state-of-play thread's roadmap census as written ('RC-ALL: approve all'): held to 2026-11-12, because the agent-host work it serves is on hold. The plan above is kept as it stands; review it again on that date or when agent-host work resumes. The hold grants no planning, implementation or acceptance authority.
