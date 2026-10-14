@@ -91,7 +91,7 @@ Keep this canonical record draft Next with null baseline. Record the exact local
 
 ### Sequencing
 
-The delivered durability pilot is source-grounded above. Local planning is released by Decision 15; review of this canonical plan remains the Ready gate. Future source writers are serialised as described under Dependencies / blocks.
+The delivered durability pilot is source-grounded above. Local planning is released by Kris's 2026-10-12 words in the tools-burndown run, "lets get it out of the way"; review of this canonical plan remains the Ready gate. Future source writers are serialised as described under Dependencies / blocks.
 
 ### Compatibility recommendations
 
@@ -99,8 +99,8 @@ Keep teardown only as a non-destructive exit-2 diagnostic so old automation cann
 
 ### Adoption authority
 
-On 12 October 2026, Kris approved the recommendation: "I approve your recommendation, I can review it further later" (tools-burndown Decision 11). Adopted as deliver/draft on Hold, intentionally parked until explicit Kris release for local planning through agent-host. Decision 12 preserves these dispositions and does not release other held work. Adoption grants no implementation, acceptance, release, remote-agent or remote-environment authority. Local planning does not resume all agent-host work.
+On 12 October 2026, Kris approved the recommendation in the tools-burndown run: "I approve your recommendation, I can review it further later". Adopted as deliver/draft on Hold, intentionally parked until explicit Kris release for local planning through agent-host. Kris's later instruction the same day to "approve/accept anything awaiting review and prune all done" preserves these dispositions and does not release other held work. Adoption grants no implementation, acceptance, release, remote-agent or remote-environment authority. Local planning does not resume all agent-host work.
 
 ### Local planning release
 
-On 12 October 2026, Kris said "lets get it out of the way" (tools-burndown Decision 15), explicitly releasing this record for local planning toward delivery. The destination is deliver/draft Next with the hold removed. This releases canonical planning only: the resulting plan must be reviewed before Ready or implementation, and the execution baseline remains null. It grants no acceptance, release or live operation and does not resume other agent-host work.
+On 12 October 2026, Kris said "lets get it out of the way" in the tools-burndown run, explicitly releasing this record for local planning toward delivery. The destination is deliver/draft Next with the hold removed. This releases canonical planning only: the resulting plan must be reviewed before Ready or implementation, and the execution baseline remains null. It grants no acceptance, release or live operation and does not resume other agent-host work.
