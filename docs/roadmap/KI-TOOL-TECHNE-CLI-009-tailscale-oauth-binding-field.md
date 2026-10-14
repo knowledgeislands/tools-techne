@@ -2,12 +2,14 @@
 id: KI-TOOL-TECHNE-CLI-009
 area: CLI
 title: Tailscale OAuth binding field
-status: triage
+status: draft
+kind: deliver
+horizon: next
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-14T21:30:44Z
-updated_at: 2026-10-14T21:30:44Z
+updated_at: 2026-10-14T23:23:00Z
 transferred_from: ki-techne-harness
 ---
 
@@ -27,9 +29,43 @@ An operator can record, in a host binding, the 1Password reference for the agent
 - Out of scope: reading the item with `op` or resolving the reference anywhere in this repository; storing or logging any secret; harness recipe changes; and any live provision, rebuild or other remote action.
 - The value is a reference, never a secret.
 
+## Current state
+
+Adopted 2026-10-14 per Decision 64 in the techne coordination thread. Kris approved advancement from triage to draft/next; the work is ready for planning.
+
+## Steps
+
+- [ ] Reserved for planning phase
+
+## Files touched
+
+Reserved for planning phase.
+
+## Verify
+
+Reserved for planning phase.
+
 ## Dependencies / blocks
 
 Not blocking: the hand export works today. The Techne Harness adds its optional recipe parameter after this tool delivers; the receiving repository owns its own priority and plan. The remote-environment hold does not apply to local implementation of this field, and Kris decided on 14 October 2026 to hand this over now.
+
+## Documentation impact
+
+### Decision Records
+
+None.
+
+### Specifications
+
+Update [the Techne Binding reference](../references/techne-binding-schema.md) (or the canonical reference) to document the new optional `tailscale_oauth_item` field.
+
+### Guides
+
+Update the operator guide's binding configuration section to describe the new field.
+
+### Roadmap
+
+None.
 
 ## Discussion
 
