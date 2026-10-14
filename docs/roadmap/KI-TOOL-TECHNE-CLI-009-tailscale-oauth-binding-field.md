@@ -31,7 +31,7 @@ An operator can record, in a host binding, the 1Password reference for the agent
 
 ## Current state
 
-Adopted 2026-10-14 per Decision 64 in the techne coordination thread. Kris approved advancement from triage to draft/next; the work is ready for planning.
+Adopted 2026-10-14 in the techne coordination thread, on Kris's word, as received: "Adopt KI-TOOL-TECHNE-CLI-009 in tools-techne as kind deliver at horizon next, planned after the current burn-down work". The work is ready for planning.
 
 ## Steps
 
