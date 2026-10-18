@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 env:
-  KI_VERSION: v0.8.4
+  KI_VERSION: v0.11.3
 
 jobs:
   build:
