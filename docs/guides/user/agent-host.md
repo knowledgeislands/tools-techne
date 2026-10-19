@@ -2,7 +2,7 @@
 
 Use this guide to bind, check, set up, start, stop, connect to or tear down a Techne agent host from your machine.
 
-An agent host is described by a binding file you keep on your machine, which names a recipe from the Techne Harness and one provider. The harness owns each recipe: its scripts, stack and the resources it leaves behind. This guide covers only the CLI commands. Remote use of a host is limited to what the current Techne Programme Hold exemption allows.
+An agent host is described by a binding file you keep on your machine, which names a recipe from the Techne Harness and one provider. The harness owns each recipe: its scripts, stack and the resources it leaves behind. This guide covers only the CLI commands. Remote use of a host is limited to what the principal's [Techne Programme Focus](https://github.com/knowledgeislands/ki-principal/blob/main/Admin/Governance/Policies/Techne%20Programme%20Focus.md) allows.
 
 ## Before you start
 
