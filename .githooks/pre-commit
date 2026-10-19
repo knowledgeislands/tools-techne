@@ -1,0 +1,18 @@
+#!/bin/sh
+# Committed pre-commit gate, bound by `core.hooksPath` so every working tree runs it.
+# Without its tools it refuses the commit rather than letting it pass unchecked.
+root="$(git rev-parse --show-toplevel)" || exit 1
+missing=''
+for tool in lint-staged syncpack; do
+  [ -x "$root/node_modules/.bin/$tool" ] || missing="$missing $tool"
+done
+if [ -n "$missing" ]; then
+  echo "pre-commit: the commit gate cannot run; missing from node_modules/.bin:$missing" >&2
+  echo "pre-commit: run \`bun install\` in $root, then commit again." >&2
+  echo "pre-commit: do not bypass with --no-verify; a gate that cannot run is unknown, not a pass." >&2
+  exit 1
+fi
+PATH="$root/node_modules/.bin:$PATH"
+export PATH
+lint-staged || exit 1
+syncpack format --check || exit 1
