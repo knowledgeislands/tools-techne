@@ -5,16 +5,12 @@ title: Guarded host commands
 project: agent-host
 kind: deliver
 status: draft
-horizon: hold
-hold:
-  reason: waiting-for
-  condition: Agent-host work resumes under the Techne Programme Hold
-  review: 2026-11-12
+horizon: next
 blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-14T13:22:16Z
+updated_at: 2026-10-19T23:37:39Z
 ---
 
 # Guarded Host Commands
@@ -112,3 +108,7 @@ On 12 October 2026, Kris said "lets get it out of the way" in the tools-burndown
 ### Hold
 
 On 14 October 2026 Kris approved the state-of-play thread's roadmap census as written ('RC-ALL: approve all'): held to 2026-11-12, because the agent-host work it serves is on hold. The plan above is kept as it stands; review it again on that date or when agent-host work resumes. The hold grants no planning, implementation or acceptance authority.
+
+### Release
+
+On 20 October 2026 the agent-host work's resume run released this record under Kris's overnight authority ("You can do anything on a high confidence level that you recommend"). Its hold condition is met: the Techne Programme Focus in `ki-principal` replaced the Techne Programme Hold, and agent-host work resumed under it, with the agent host in focus. The destination is `deliver / draft / next`, the one its local planning release set. Scope and dependencies are unchanged: the plan above still waits for Kris's review before Ready, and the release grants no implementation, acceptance, release or live operation.
