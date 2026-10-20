@@ -11,7 +11,7 @@ blocks: []
 blocked_by: []
 baseline_ref: null
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-19T23:47:26Z
+updated_at: 2026-10-20T05:55:52Z
 ---
 
 # Guarded Host Commands
@@ -70,7 +70,7 @@ Future tests use temporary local files, synthetic provider responses and an inje
 
 The delivered Harness pilot and manifest satisfy the source prerequisite; `blocks: []`, `blocked_by: []` and `baseline_ref: null` stay unchanged. CLI-006 planning does not depend on vega recreation. Ready requires Kris's review of this replanned record, then separately authorised local implementation; live operations remain the binding owner's.
 
-The [host-patching delivery](https://github.com/knowledgeislands/tools-techne/blob/854e60a3c02d7d02fdf1ca43b9c32541c6a0db04/docs/roadmap/KI-TOOL-TECHNE-CLI-008-host-patching-fields.md) landed first, as recommended, and this plan is re-grounded against its result: its text-authoritative status and supplemental updates read are reconciled in the status steps above. [CLI-009](KI-TOOL-TECHNE-CLI-009-tailscale-oauth-binding-field.md) adds a binding field the recipe will pass to `destroy`; it flows through the role-correct script environment without a change here. Neither is a build dependency, but serialise their writers because both touch binding and script-environment code. No shared-project or ki-batch authority is inferred.
+The [host-patching delivery](https://github.com/knowledgeislands/tools-techne/blob/854e60a3c02d7d02fdf1ca43b9c32541c6a0db04/docs/roadmap/KI-TOOL-TECHNE-CLI-008-host-patching-fields.md) landed first, as recommended, and this plan is re-grounded against its result: its text-authoritative status and supplemental updates read are reconciled in the status steps above. [KI-TOOL-TECHNE-CLI-009 (pruned)](https://github.com/knowledgeislands/tools-techne/blob/78f88656/docs/roadmap/KI-TOOL-TECHNE-CLI-009-tailscale-oauth-binding-field.md) adds a binding field the recipe will pass to `destroy`; it flows through the role-correct script environment without a change here. Neither is a build dependency, but serialise their writers because both touch binding and script-environment code. No shared-project or ki-batch authority is inferred.
 
 ## Documentation impact
 
