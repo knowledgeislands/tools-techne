@@ -2,15 +2,14 @@
 id: KI-TOOL-TECHNE-CLI-009
 area: CLI
 title: Tailscale OAuth binding field
-status: awaiting-review
+status: done
 kind: deliver
-horizon: now
 size: s
 blocks: []
 blocked_by: []
 baseline_ref: 52871249e4dbc2c73346212866d87d7139441749
 created_at: 2026-10-14T21:30:44Z
-updated_at: 2026-10-20T05:20:00Z
+updated_at: 2026-10-20T05:34:40Z
 transferred_from: ki-techne-harness
 ---
 
@@ -123,7 +122,19 @@ The goal is met within this tool's boundary: the reference can be recorded once 
 
 Optional `tailscale_oauth_item` binding field delivered in tools-techne with stubbed tests; every declared gate passed at full coverage with no new audit finding. It takes effect once the Harness declares the parameter and `techne` runs the declaring scripts. No learning to promote.
 
+## Done
+
+Accepted 2026-10-20 by the independent Codex reviewer under Kris Brown's overnight grant on the review packet above.
+
 ## Discussion
+
+### Independent acceptance
+
+Kris Brown granted overnight acceptance on 20 October 2026: "if you can quickly now accept ... accepting new things that are waiting with you and pruning those ... getting the roadmaps down to zero". Source: the accept2-tools-techne independent acceptance brief, explicitly authorising acceptance under its prune tier. This grant is applied to KI-TOOL-TECHNE-CLI-009 only. The reviewer did not deliver the implementation.
+
+Independent review of the baseline, implementation and six-part packet passed. All definition-of-done gates were rerun with network access denied: both frozen installs (offline), 105 tests, 100% statements/branches/functions/lines coverage, type checking, build, release/installer fixtures, manual lint and rendered reading, Biome, rumdl, full repository audit and diff checks. The full audit reported zero failures and six existing warnings: authoring configuration drift, Claude binding drift, lint-staged fan-out, inline CI tool pin and two hook-template differences. HOOK-GUARD remains in force; no conformance or environment change was made. No check requires an attended action, publication or Kris's own eyes. The recipe-parameter follow-up is already carried by TS-OAUTH-PARAM in the receiving agent-host work's message queue.
+
+Pruning is deferred: cross-repository reference preflight found live links in Principal's ways-of-working roadmap sweep and agent-host state and work files. The local guarded-host plan also links here. The selected repository and its accessible Principal, Harness, agentic-harness, tools-ki, specifications and website peers were searched; no completion-observation trade was found in those roots. The archived former Techne Principal is unavailable locally and was not fetched under this run's remote-call restrictions. Peer links cannot be repaired under this run's messages-only authority, so the committed Done record is retained and the supervisor is asked to arrange repairs before pruning.
 
 ### Open questions, resolved in planning
 
