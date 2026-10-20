@@ -2,15 +2,15 @@
 id: KI-TOOL-TECHNE-CLI-009
 area: CLI
 title: Tailscale OAuth binding field
-status: ready
+status: awaiting-review
 kind: deliver
-horizon: next
+horizon: now
 size: s
 blocks: []
 blocked_by: []
 baseline_ref: 52871249e4dbc2c73346212866d87d7139441749
 created_at: 2026-10-14T21:30:44Z
-updated_at: 2026-10-20T05:02:00Z
+updated_at: 2026-10-20T05:20:00Z
 transferred_from: ki-techne-harness
 ---
 
@@ -43,9 +43,9 @@ Planned on 20 October 2026 in the overnight roadmap burn-down against tools-tech
 
 ## Steps
 
-- [ ] Add `tailscale_oauth_item` to `NEUTRAL_FIELDS`. Accept only a TOML string in 1Password reference form, `op://<vault>/<item>` with optional further segments, each segment non-empty and free of whitespace; refuse any other value before a provider table or subprocess is read, with a message that never echoes the value. Check a resolved recipe default against the same form.
-- [ ] Keep routing generic: hard-code no environment variable name and no script list. The recipe parameter's `env` and `scripts` decide where the value goes, so it reaches `provision` and `destroy` once the Harness declares them and `techne` runs those scripts. An unset field adds nothing to any script environment.
-- [ ] Document the field in the agent-host user guide's binding section, the manual's binding file entry and the changelog, saying that it holds a reference, never a secret, that `techne` never reads it with `op`, and that it reaches only the scripts the recipe declares.
+- [x] Add `tailscale_oauth_item` to `NEUTRAL_FIELDS`. Accept only a TOML string in 1Password reference form, `op://<vault>/<item>` with optional further segments, each segment non-empty and free of whitespace; refuse any other value before a provider table or subprocess is read, with a message that never echoes the value. Check a resolved recipe default against the same form.
+- [x] Keep routing generic: hard-code no environment variable name and no script list. The recipe parameter's `env` and `scripts` decide where the value goes, so it reaches `provision` and `destroy` once the Harness declares them and `techne` runs those scripts. An unset field adds nothing to any script environment.
+- [x] Document the field in the agent-host user guide's binding section, the manual's binding file entry and the changelog, saying that it holds a reference, never a secret, that `techne` never reads it with `op`, and that it reaches only the scripts the recipe declares.
 
 ## Files touched
 
@@ -86,6 +86,42 @@ Update the operator guide's binding configuration section to describe the new fi
 ### Roadmap
 
 None.
+
+## Review
+
+### Delivered
+
+Delivered against baseline `52871249e4dbc2c73346212866d87d7139441749` through the record-only Ready commit `e4db3b8` and implementation commit `4e43224`: a binding may set the optional top-level `tailscale_oauth_item`, holding a 1Password reference; it reaches only the scripts the recipe parameter declares, and an unset field sets nothing. Excluded as planned: Harness recipe changes, reading the reference with `op`, provisioning grammar, and every remote, provider or host operation.
+
+### Change Summary
+
+- [src/bindings.ts](../../src/bindings.ts): adds the field to `NEUTRAL_FIELDS`; refuses a non-string or anything but `op://<vault>/<item>` with optional further non-empty, whitespace-free segments, before any provider table or subprocess, with a message that never repeats the value; checks a resolved recipe default the same way. Environment derivation is unchanged and hard-codes no variable or script.
+- [src/tests/cli.test.ts](../../src/tests/cli.test.ts): four public-seam cases. The vendored recipe fixture is unchanged; tests declare the Harness's future parameter in-test.
+- [Agent-host user guide](../guides/user/agent-host.md), [man/techne.1](../../man/techne.1) and [CHANGELOG.md](../../CHANGELOG.md): the field, its form, that it is never the secret and never read, its routing, and the hand export still needed for a build run by hand.
+
+No approved deviation. The record's Specifications line named a binding reference file that does not exist; as planned, the guide and manual carry the field instead.
+
+### Verification
+
+Run from the worktree root with the pinned Bun:
+
+- `bun run test`: 105 passed, 0 failed. `bun run test:coverage`: 100% statements, branches, functions and lines.
+- `bun install --frozen-lockfile` (root and `tooling/boundaries`), `bun run self:typecheck`, `bun run build`, `bun run self:release:test`, `bun run ki:tools:lint-man`, `bunx biome check .`, `bunx rumdl check .` and `git diff --check`: all exit 0. The edited manual renders through `mandoc` and passes `mandoc -Tlint`.
+- `ki repo audit --repo .`: no new finding. The primary checkout's existing findings are unchanged (five warnings, including `.rumdl.toml` drift, lint-staged fan-out and inline CI `KI_VERSION`); the worktree adds only RUNTIMES-2 runtime-activation failures, which follow the checkout path rather than any file and do not appear in the primary checkout.
+- Tests use a fake runner and stub provider only; no AWS, SSH, Tailscale, 1Password or Harness script ran.
+
+### Outstanding concerns
+
+- The field changes nothing operationally until the Harness declares the matching recipe parameter, and `techne` runs `destroy` only once KI-TOOL-TECHNE-CLI-006 delivers; `provision` still runs by hand with the variable exported. The guide says so.
+- A set field overrides an operator's own export for the declared scripts; this is the generic binding precedence.
+
+### Post-change review
+
+The goal is met within this tool's boundary: the reference can be recorded once on the binding, is refused in any non-reference form, and reaches exactly the scripts the recipe lists. Regression risk is low: existing tests pass unchanged and the binding schema stays `techne/host-binding/v1`. The Harness handoff, adding the optional `tailscale_oauth_item` parameter for `provision` and `destroy`, goes to the receiving work as a message.
+
+### Mini recap
+
+Optional `tailscale_oauth_item` binding field delivered in tools-techne with stubbed tests; every declared gate passed at full coverage with no new audit finding. It takes effect once the Harness declares the parameter and `techne` runs the declaring scripts. No learning to promote.
 
 ## Discussion
 
