@@ -17,7 +17,7 @@ Use `ki-repo-tools` for shared CLI and delivery policy, `ki-engineering` for the
 
 ## Cross-repository choreography
 
-- Knowledge Islands Principal, the KI Agentic Harness, `tools-ki`, KI Specifications, the KI Website, the Techne Harness, and `tools-techne` may add a concrete handoff item to one another's Stream or roadmap. The receiving repository owns its priority, plan, and execution.
+- Knowledge Islands Principal, the KI Agentic Harness, `tools-ki`, KI Specifications, the KI Website, the Techne Harness, and `tools-techne` hand work and rollouts to one another as a line in the receiving work's `messages.md`, or State of play's where no work owns it, never as a record in one another's Stream, roadmap, or triage, as Kris set under HANDOFF-AS-MESSAGE on 2026-10-20: "Handoffs are not roadmap items ... A rollout that needs people to make those changes sooner rather than later must go as a message". The receiving repository owns its priority, plan, and execution, and only it captures a record, for work genuinely deferred that it owns.
 - A handoff names the originating repository, states the need in plain terms, and says in plain words whether it blocks work there. Link only durable documentation, such as guides, specifications or manifests; never link to or cite another repository's roadmap record or its identifier, because records are pruned and such links break.
 - Prefer independently executable, non-blocking work. Mark an item as blocking only when it is a genuine prerequisite; otherwise let the receiving repository schedule it in its own horizon.
 - A handoff transfers no ownership: ADR-KI-PRINCIPAL-006 still decides what this repository owns.
