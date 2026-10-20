@@ -2255,6 +2255,93 @@ describe('host patching fields', () => {
   })
 })
 
+const OAUTH_ITEM = 'op://Techne/ki-techne-agent-host-tailscale-oauth'
+
+// The parameter the Harness adds once this field exists, declared for the given scripts.
+function oauthRecipe(scripts: string): string {
+  return `${AGENT_HOST}\n[parameters.tailscale_oauth_item]\noptional = true\nenv = "AGENT_HOST_TAILSCALE_OAUTH_ITEM"\nscripts = [${scripts}]\n`
+}
+
+describe('host Tailscale OAuth field', () => {
+  test('accepts an absent field and references without passing them to scripts the recipe does not list', async () => {
+    for (const fields of [
+      '',
+      `tailscale_oauth_item = "${OAUTH_ITEM}"`,
+      'tailscale_oauth_item = "op://v/i/credential"'
+    ]) {
+      for (const recipe of [AGENT_HOST, oauthRecipe('"provision", "destroy"')]) {
+        const setup = fixture({ recipes: { 'agent-host': recipe }, bindings: { 'agent-host': patched(fields) } })
+        const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+        expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
+        expect(runner.calls[2]?.env).toEqual(STATUS_ENV)
+      }
+    }
+
+    const setup = fixture({
+      recipes: { 'agent-host': oauthRecipe('"provision", "destroy"') },
+      bindings: { 'agent-host': patched(`tailscale_oauth_item = "${OAUTH_ITEM}"`) }
+    })
+    const runner = new FakeRunner([response(), response(), response()])
+    expect(await harness(runner, setup.environment).run(['host', 'setup', '--host', 'agent-host'])).toBe(0)
+    expect(runner.calls[2]?.env).not.toHaveProperty('AGENT_HOST_TAILSCALE_OAUTH_ITEM')
+  })
+
+  test('passes the reference only to the scripts the recipe declares, and nothing when unset', async () => {
+    for (const [fields, expected] of [
+      [`tailscale_oauth_item = "${OAUTH_ITEM}"`, { ...STATUS_ENV, AGENT_HOST_TAILSCALE_OAUTH_ITEM: OAUTH_ITEM }],
+      ['', STATUS_ENV]
+    ] as const) {
+      const setup = fixture({
+        recipes: { 'agent-host': oauthRecipe('"status", "destroy"') },
+        bindings: { 'agent-host': patched(fields) }
+      })
+      const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+      expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
+      expect(runner.calls[2]?.env).toEqual(expected)
+    }
+  })
+
+  test('refuses anything but a 1Password reference before any subprocess, without echoing it', async () => {
+    const message = 'tailscale_oauth_item must be a 1Password reference, such as "op://<vault>/<item>"'
+    for (const value of [
+      '""',
+      '"tskey-client-secret"',
+      '"op://"',
+      '"op://vault"',
+      '"op://vault/"',
+      '"op:///item"',
+      '"op://vault//item"',
+      '"op://my vault/item"',
+      '"op://vault/item\\n"',
+      '"OP://vault/item"',
+      '" op://vault/item"',
+      '1',
+      '["op://vault/item"]',
+      '{ ref = "op://vault/item" }'
+    ]) {
+      const setup = fixture({ bindings: { 'agent-host': patched(`tailscale_oauth_item = ${value}`) } })
+      const runner = new FakeRunner([])
+      const cli = harness(runner, setup.environment)
+      expect(await cli.run(['host', 'status'])).toBe(1)
+      expect(cli.output().stderr).toBe(
+        `techne: error: ${join(setup.configuration, 'hosts/agent-host.toml')}: ${message}\n`
+      )
+      expect(runner.calls).toHaveLength(0)
+    }
+  })
+
+  test('holds a recipe default to the same form', async () => {
+    const recipe = oauthRecipe('"status"').replace(
+      '[parameters.tailscale_oauth_item]\n',
+      '[parameters.tailscale_oauth_item]\ndefault = "tskey-client-{name}"\n'
+    )
+    const cli = harness(new FakeRunner([]), fixture({ recipes: { 'agent-host': recipe } }).environment)
+    expect(await cli.run(['host', 'list'])).toBe(1)
+    expect(cli.output().stderr).toContain('tailscale_oauth_item must be a 1Password reference')
+    expect(cli.output().stderr).not.toContain('tskey')
+  })
+})
+
 describe('host status updates', () => {
   test('projects the updates member into JSON status from one supplemental read', async () => {
     const setup = fixture()

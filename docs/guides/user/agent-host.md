@@ -55,6 +55,16 @@ livepatch = true
 
 Techne refuses any other form before running anything, and passes each value only to the recipe scripts that declare it, which for `agent-host` is the build. Editing a binding changes nothing on a running host: the settings reach a host only when it is next built, which [the harness operator guide](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#patching-and-restart) describes.
 
+### Tailscale OAuth client
+
+A build mints the host's Tailscale auth key from an OAuth client kept in 1Password. Record the item's reference once instead of exporting `AGENT_HOST_TAILSCALE_OAUTH_ITEM` by hand:
+
+```toml
+tailscale_oauth_item = "op://<vault>/ki-techne-agent-host-tailscale-oauth"
+```
+
+The value is a 1Password reference, `op://<vault>/<item>` with optional further segments, never the secret it names; Techne refuses any other form before running anything, without repeating the value. Techne never reads the item with `op`: it passes the reference only to the recipe scripts that declare it, which the harness recipe sets to the build and teardown, and the harness's [Key minting](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#key-minting) reads it there. Leave the field out and Techne sets nothing, so your own export keeps working. Techne runs neither script yet, so until it does, export the variable for a build you run by hand.
+
 ## Select a host
 
 Read-only commands act on one selected host, chosen by the first of:

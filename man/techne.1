@@ -286,6 +286,14 @@ is
 or
 .BR false ;
 both are optional and reach a host only when it is next built.
+The optional
+.B tailscale_oauth_item
+is a 1Password reference,
+.BI op:// vault / item ,
+naming the Tailscale OAuth client a build mints its key from.
+It is never the secret itself,
+.B techne
+never reads it, and it reaches only the scripts the recipe declares.
 .SH ENVIRONMENT
 \&
 .TP
