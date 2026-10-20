@@ -1,13 +1,9 @@
 #!/bin/sh
-# Committed commit-msg gate, bound by `core.hooksPath` so every working tree runs it.
-# Without its tools it refuses the commit rather than letting it pass unchecked.
+# Canonical commit-msg for a ki-repo-tools repository with a package.json, composed by ki-repo.
+# Copied byte-exact from ki-repo-tools's assets/githooks/package/commit-msg; HOOK-4 compares it, so do not edit it here.
 root="$(git rev-parse --show-toplevel)" || exit 1
-missing=''
-for tool in commitlint; do
-  [ -x "$root/node_modules/.bin/$tool" ] || missing="$missing $tool"
-done
-if [ -n "$missing" ]; then
-  echo "commit-msg: the commit gate cannot run; missing from node_modules/.bin:$missing" >&2
+if [ ! -x "$root/node_modules/.bin/commitlint" ]; then
+  echo "commit-msg: the commit gate cannot run; missing from node_modules/.bin: commitlint" >&2
   echo "commit-msg: run \`bun install\` in $root, then commit again." >&2
   echo "commit-msg: do not bypass with --no-verify; a gate that cannot run is unknown, not a pass." >&2
   exit 1

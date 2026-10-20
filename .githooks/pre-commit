@@ -1,9 +1,10 @@
 #!/bin/sh
-# Committed pre-commit gate, bound by `core.hooksPath` so every working tree runs it.
-# Without its tools it refuses the commit rather than letting it pass unchecked.
+# Canonical pre-commit for a ki-repo-tools repository with a package.json, composed by ki-repo.
+# Copied byte-exact from ki-repo-tools's assets/githooks/package/pre-commit; HOOK-4 compares it, so do not edit it here.
 root="$(git rev-parse --show-toplevel)" || exit 1
+git diff --cached --quiet && exit 0
 missing=''
-for tool in lint-staged syncpack; do
+for tool in lint-staged syncpack biome rumdl; do
   [ -x "$root/node_modules/.bin/$tool" ] || missing="$missing $tool"
 done
 if [ -n "$missing" ]; then
@@ -12,7 +13,39 @@ if [ -n "$missing" ]; then
   echo "pre-commit: do not bypass with --no-verify; a gate that cannot run is unknown, not a pass." >&2
   exit 1
 fi
+missing=''
+for tool in shellcheck bash mandoc ki; do
+  if ! command -v "$tool" >/dev/null 2>&1; then missing="$missing $tool"; fi
+done
+if [ -n "$missing" ]; then
+  echo "pre-commit: the commit gate cannot run; not on PATH:$missing" >&2
+  echo "pre-commit: install them, then commit again." >&2
+  echo "pre-commit: do not bypass with --no-verify; a gate that cannot run is unknown, not a pass." >&2
+  exit 1
+fi
 PATH="$root/node_modules/.bin:$PATH"
 export PATH
-lint-staged || exit 1
+lint-staged --quiet || exit 1
 syncpack format --check || exit 1
+# Staged shell files, by name or by a sh or bash shebang, and staged manual pages (ki-repo-tools SHELL-HOOK).
+staged_shell() {
+  git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r path; do
+    case "$path" in
+      *.sh | *.bash) printf '%s\n' "$path" ;;
+      *) if head -n 1 -- "$path" 2>/dev/null | grep -Eq '^#!.*[/ ](ba)?sh([[:space:]]|$)'; then printf '%s\n' "$path"; fi ;;
+    esac
+  done
+}
+shell_files="$(staged_shell)" || exit 1
+if [ -n "$shell_files" ]; then
+  printf '%s\n' "$shell_files" | tr '\n' '\0' | xargs -0 shellcheck || exit 1
+  printf '%s\n' "$shell_files" | while IFS= read -r path; do bash -n "$path" || exit 1; done || exit 1
+fi
+git diff --cached --name-only --diff-filter=ACMR -z -- 'man/*.[1-9]' | xargs -0 -r mandoc -T lint || exit 1
+# The focused shape audit, check-only over the staged paths; on a failure it runs again in full.
+quiet_audit() {
+  ki repo audit --repo "$root" --staged --concise --progress never --reporter-levels FAIL "$@" && return 0
+  ki repo audit --repo "$root" --staged "$@"
+  return 1
+}
+quiet_audit --skill ki-repo-tools || exit 1
