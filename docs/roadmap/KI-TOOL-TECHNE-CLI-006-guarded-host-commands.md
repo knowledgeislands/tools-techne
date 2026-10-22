@@ -4,14 +4,13 @@ area: CLI
 title: Guarded host commands
 project: agent-host
 kind: deliver
-status: awaiting-review
-horizon: now
+status: done
 size: l
 blocks: []
 blocked_by: []
 baseline_ref: 40156309a933a21f4292c491751625437a6fe599
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-22T02:14:21Z
+updated_at: 2026-10-22T07:38:22Z
 ---
 
 # Guarded Host Commands
@@ -143,6 +142,10 @@ The delivered CLI follows the Harness guard instead of directly terminating or r
 
 Guarded stop/rebuild/withdraw and authoritative status are delivered within the approved boundary. Tests cover outcomes, malformed documents and updates, mixed-host continuation/precedence, script roles, exact argv, refusal results, grammar and zero-effect compatibility. Operator guidance is the durable learning route; no cross-repository knowledge promotion or new backlog item is needed. Review and any attended owner exercise remain with Kris.
 
+## Done
+
+Accepted 2026-10-22 by Kris on the review packet above.
+
 ## Discussion
 
 ### Sequencing
@@ -176,3 +179,9 @@ On 20 October 2026 the agent-host work re-checked this plan against the current 
 ### Ready and offline delivery authority
 
 On 22 October 2026 at 02:25 BST, Kris answered TECHNE-006-REVIEW a), releasing this replanned record to Ready. The overnight burn-down task separately authorises its local implementation using isolated fixtures and dry runs only, with no real host operations, acceptance or release.
+
+### Acceptance authority and evidence
+
+Accepted on 22 October 2026 under Kris's 21 October 14:46 BST triple-review grant, as expressly applied to this record by the `wow-accept-cli006` task: "three agreeing high-confidence reviews stand in for acceptance". The three independent high-confidence reviews assess the same delivered revision, `492e05359729e80515b789fdb014eee392b2f8e3`, including the correction to contradictory repository evidence: [review a](</Users/krisbrown/.local/state/ki/agents/ways-of-working/wow-rev3-cli006-a.report.md>), [review b](</Users/krisbrown/.local/state/ki/agents/ways-of-working/wow-rev3-cli006-b.report.md>) and [review c](</Users/krisbrown/.local/state/ki/agents/ways-of-working/wow-rev3-cli006-c.report.md>). All three support delivery acceptance. Review a's REFUSE verdict concerns immediate pruning and explicitly distinguishes it from supportable acceptance; reviews b and c also require reference reconciliation before pruning.
+
+The accepted record is retained. The reviews' inbound-reference inventories and stale Principal entries are carried into the acceptance run report for a later, separately authorised reconciliation and prune. No Principal file is changed. Acceptance grants no release or live-operation authority; the offline verification limits in the Review remain in force.
