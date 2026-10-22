@@ -246,5 +246,10 @@ function validRepository(value: unknown): boolean {
   )
     return false
   const upstream = value['upstream']
-  return upstream === null || (isTable(upstream) && isCount(upstream['ahead']) && isCount(upstream['behind']))
+  if (upstream !== null && !(isTable(upstream) && isCount(upstream['ahead']) && isCount(upstream['behind'])))
+    return false
+  if (value['problem'] !== null && value['state'] !== 'unknown') return false
+  // Labels cannot erase risk or incomplete inspection in the same repository.
+  if (value['state'] === 'clean' && (value['dirty'] > 0 || value['unpushed'] > 0 || value['stashes'] > 0)) return false
+  return true
 }

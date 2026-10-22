@@ -322,7 +322,8 @@ class Context {
   // What one recipe script receives: its declared binding variables and the provider's.
   hostEnvironment(binding: HostBinding, adapter: HostAdapter, script: string): Record<string, string> {
     const declared = scriptEnvironment(binding.recipe, binding.provider, adapter.values, script)
-    return script === 'stop' || script === 'destroy'
+    return script === 'stop' ||
+      Object.values(binding.recipe.operations).some((operation) => operation.script === script)
       ? { ...adapter.environment, ...declared }
       : { ...declared, ...adapter.environment }
   }
@@ -809,7 +810,7 @@ async function hostStop(context: Context): Promise<number> {
     context.hostEnvironment(binding, adapter, 'stop'),
     'stop'
   )
-  context.io.stdout(`stopping ${host.instanceId}\n`)
+  context.io.stdout(`stopped ${host.instanceId}\n`)
   return 0
 }
 

@@ -11,7 +11,7 @@ blocks: []
 blocked_by: []
 baseline_ref: 40156309a933a21f4292c491751625437a6fe599
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-22T02:01:39Z
+updated_at: 2026-10-22T02:14:21Z
 ---
 
 # Guarded Host Commands
@@ -102,21 +102,31 @@ The approved guarded-host boundary is implemented locally from immutable baselin
 
 No plan expansion was required. An additive `workspace.outcome` makes unavailable evidence explicit while `workspace.safety` remains nullable. A legacy recipe keeps its text fallback but returns unknown, never a fabricated structured clean verdict. Reports claiming safer outcomes than their repository or inventory evidence fail closed. Malformed optional updates are omitted from the safety document and its projection without changing the core verdict.
 
+#### Review corrections
+
+Independent review of delivery `41b6fd40` found that the earlier safer-than-evidence claim was incomplete: a repository labelled clean could still contain dirty files, unpushed commits, stashes or an inspection problem. Each case now has its own public `runCli` regression, and contradictory repository fields fail closed with exit 1 and no raw document. An inspection problem requires unknown repository state. Tracking-upstream drift remains advisory: the Harness counts unpushed commits against all remote-tracking branches, so ahead/behind counts alone do not contradict clean evidence. Conservative top-level outcomes do not excuse inconsistent repository fields. A zero-count clean repository, including a null upstream, remains valid, and unknown repositories may retain partial inspection evidence.
+
+The additional reviews' profile-selection concern is resolved by deriving environment precedence from the recipe's declared operation script rather than the literal destroy script name. An aliased operation with its own scoped profile has a public-seam regression; the original name-based implementation fails it. The stop regression now requires completed-stop wording after the guarded script returns. Existing status/setup profile behaviour remains covered.
+
+The provider-check wording is clarified: rebuild and withdraw retain CLI provider-option and explicit-host validation, while the destroy script owns account, stack and same-host checks through its declared environment. They perform no CLI-side AWS identity or instance lookup. CLI tests certify delegation and truthful handling of injected guard results, not those Harness internals.
+
+The twelve inbound links in eleven Principal work-package files identified by review remain untouched for a later prune run. This record remains awaiting-review; no acceptance, pruning, new work record or live operation is included.
+
 ### Verification
 
 All final gates passed on 22 October 2026 using the pinned root Bun 1.4.2. Installed local binaries were used instead of download-capable `bunx`; frozen dependency checks used offline mode and skipped lifecycle scripts to avoid network and environment mutation.
 
 - `bun install --offline --frozen-lockfile --ignore-scripts`: passed, lockfile unchanged.
 - `bun install --offline --frozen-lockfile --ignore-scripts --cwd tooling/depcruise`: passed, lockfile unchanged.
-- `bun run test`: passed, 109 tests across five files.
-- `bun run test:coverage`: passed, 100% statements, branches, functions and lines (1,177 statements, 847 branches, 229 functions, 1,064 lines).
+- `bun run test`: passed, 115 tests across five files.
+- `bun run test:coverage`: passed, 100% statements, branches, functions and lines (1,184 statements, 860 branches, 230 functions, 1,069 lines).
 - `bun run self:typecheck`: passed.
 - `bun run build`: passed.
 - `bun run self:release:test`: passed, local archive/installer fixtures only; an earlier manual line-length failure was corrected before this final run.
 - `bun run ki:tools:lint-man`: passed.
 - `node_modules/.bin/biome check .`: passed.
 - `node_modules/.bin/rumdl check .`: passed.
-- `ki repo audit --repo . --progress never --concise --reporter-levels FAIL`: passed, no failures; the same six warning findings as preflight remain. This includes the declared work-selector, roadmap, authoring, engineering and tool-repository layers; judgment-only criteria are not automated passes.
+- `ki repo audit --repo . --progress never --concise --reporter-levels FAIL`: passed, no failures; the same six warning findings as preflight remain. The follow-up audit caught an extra level-three Review heading, corrected to a nested subsection before the final run. This includes the declared work-selector, roadmap, authoring, engineering and tool-repository layers; judgment-only criteria are not automated passes.
 - `git diff --check`: passed.
 
 Focused diff review confirmed bounded command grammar, no direct destructive provider call, script-specific roles, truthful refusal handling, continuation after unexpected provider failures, bounded diagnostics and aligned help/completion/manual guidance. No actual host operation occurred.

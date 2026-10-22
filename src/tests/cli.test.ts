@@ -1897,6 +1897,7 @@ describe('host commands', () => {
       const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response()])
       const cli = harness(runner, setup.environment)
       expect(await cli.run(['host', 'stop', '--host', 'agent-host', ...now])).toBe(0)
+      expect(cli.output().stdout).toBe(`host agent-host: ${INSTANCE} (running)\nstopped ${INSTANCE}\n`)
       expect(ec2Operations(runner)).toEqual(['describe-instances'])
       expect(runner.calls[2]).toMatchObject({
         command: 'bash',
@@ -2473,7 +2474,7 @@ describe('guarded host safety', () => {
       expect(JSON.parse(result.stdout).workspace).toMatchObject({ state: 'failed', outcome: 'failed', safety: null })
       expect(result.stdout + result.stderr).not.toContain('raw-secret')
     }
-    for (const upstream of [null, repository.upstream]) {
+    for (const upstream of [null, repository.upstream, { ahead: 1, behind: 1 }]) {
       expect(
         (
           await status(
@@ -2487,6 +2488,71 @@ describe('guarded host safety', () => {
         ).code
       ).toBe(0)
     }
+  })
+
+  test.each([
+    ['dirty', { dirty: 1 }],
+    ['unpushed', { unpushed: 1 }],
+    ['stashes', { stashes: 1 }],
+    ['inspection problem', { problem: 'raw-secret' }]
+  ])('rejects a clean repository with %s evidence', async (_label, evidence) => {
+    const repository = {
+      path: 'repo',
+      branch: 'main',
+      state: 'clean',
+      dirty: 0,
+      unpushed: 0,
+      stashes: 0,
+      upstream: null,
+      problem: null,
+      ...evidence
+    }
+    for (const [outcome, exit] of [
+      ['clean', 0],
+      ['at-risk', 3],
+      ['unknown', 4]
+    ] as const) {
+      const result = await status(response(workspaceDocument(outcome, { repositories: [repository] }), '', exit))
+      expect(result.code).toBe(1)
+      expect(JSON.parse(result.stdout).workspace).toMatchObject({ state: 'failed', outcome: 'failed', safety: null })
+      expect(result.stdout + result.stderr).not.toContain('raw-secret')
+      expect(result.runner.calls).toHaveLength(3)
+    }
+  })
+
+  test('requires unknown repository state for inspection problems', async () => {
+    const repository = {
+      path: 'repo',
+      branch: 'main',
+      dirty: 1,
+      unpushed: 0,
+      stashes: 0,
+      upstream: null,
+      problem: 'raw-secret'
+    }
+    const result = await status(
+      response(
+        workspaceDocument('at-risk', {
+          repositories: [{ ...repository, state: 'at-risk' }]
+        }),
+        '',
+        3
+      )
+    )
+    expect(result.code).toBe(1)
+    expect(JSON.parse(result.stdout).workspace.safety).toBeNull()
+    expect(result.stdout + result.stderr).not.toContain('raw-secret')
+    const unknown = await status(
+      response(
+        workspaceDocument('unknown', {
+          repositories: [{ ...repository, state: 'unknown' }]
+        }),
+        '',
+        4
+      )
+    )
+    expect(unknown.code).toBe(4)
+    expect(JSON.parse(unknown.stdout).workspace.outcome).toBe('unknown')
   })
 
   test('refuses a verdict safer than its repository or inventory evidence', async () => {
@@ -2671,6 +2737,25 @@ describe('guarded host safety', () => {
     const rejected = harness(new ThrowingRunner(new Error('raw-secret')), setup.environment)
     expect(await rejected.run(['host', 'rebuild', '--host', 'agent-host'])).toBe(1)
     expect(rejected.output().stderr).toBe('techne: error: harness rebuild could not run\n')
+  })
+
+  test('uses the declared operation script scope for its provider profile', async () => {
+    const recipe = `${AGENT_HOST.replaceAll('"destroy"', '"retire"').replace('destroy = ', 'retire = ')}
+[providers.aws.parameters.guard_profile]
+default = "guard-profile"
+env = "AWS_PROFILE"
+scripts = ["retire"]
+`
+    const setup = fixture({ recipes: { 'agent-host': recipe } })
+    const runner = new FakeRunner([response()])
+    const cli = harness(runner, setup.environment)
+    expect(await cli.run(['host', 'rebuild', '--host', 'agent-host', '--aws-profile', 'provider-profile'])).toBe(0)
+    expect(runner.calls).toHaveLength(1)
+    expect(runner.calls[0]).toMatchObject({
+      command: 'bash',
+      args: [join(setup.harness, 'operations/aws/agent-host/destroy.sh'), 'rebuild'],
+      env: { AWS_PROFILE: 'guard-profile', AWS_REGION: 'eu-west-1', EXPECTED_AWS_ACCOUNT: ACCOUNT }
+    })
   })
 
   test('validates operation metadata and retains unresolved recipe footprint text', async () => {
