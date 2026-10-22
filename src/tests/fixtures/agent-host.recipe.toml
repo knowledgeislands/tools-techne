@@ -1,4 +1,5 @@
 # Vendored from ki-techne-harness b37b16c recipes/direct-host/recipe.toml, since renamed agent-host (db399b8); tests read it as the harness's own manifest.
+# Minimal guard-operation and stop/destroy scope projection reviewed against ki-techne-harness 32f1b1e489a6f9a38bb2578b15150a13f04775db; existing setup/status defaults stay isolated.
 # The [status] declaration and the reboot_window and livepatch parameters follow ki-techne-harness 11adc5d.
 # The agent-host recipe (KI-ARCADIA-GOV-025, TECHNE-TOOLS-OPS-012): an agent
 # host whose agents run on the host itself. A binding names one supported
@@ -39,6 +40,14 @@ at-risk = 3
 unknown = 4
 unreachable = 255
 
+[operations.rebuild]
+summary = "Replace the host, keeping credentials for the next build"
+script = "destroy"
+
+[operations.withdraw]
+summary = "Remove the host and stored credentials"
+script = "destroy"
+
 [parameters.host_name]
 summary = "Operating-system host name and resource name"
 default = "ki-techne-{name}"
@@ -49,7 +58,7 @@ scripts = ["setup", "provision", "stop"]
 summary = "Tailnet device name, used as the SSH target"
 default = "ki-techne-{name}"
 env = "AGENT_HOST_TAILSCALE_NAME"
-scripts = ["setup", "status", "provision"]
+scripts = ["setup", "status", "provision", "stop", "destroy"]
 
 [parameters.tailscale_tag]
 summary = "Tailnet tag the host advertises"
@@ -61,13 +70,13 @@ scripts = ["provision"]
 summary = "Repository list file, one `<owner>/<repo> <clone URL>` per line"
 default = "operations/aws/agent-host/host/repositories.txt"
 env = "AGENT_HOST_REPOSITORIES"
-scripts = ["setup"]
+scripts = ["setup", "stop", "destroy"]
 
 [parameters.workspace]
 summary = "Workspace root on the host; a leading ~/ is the operator's home there"
 default = "~/workspaces/kit"
 env = "KI_AGENT_HOST_WORKSPACE"
-scripts = ["setup", "status"]
+scripts = ["setup", "status", "stop", "destroy"]
 
 [parameters.reboot_window]
 summary = "Daily host-local time, a 24-hour HH:MM, at which the host restarts itself when a reboot is required and nobody is logged in"

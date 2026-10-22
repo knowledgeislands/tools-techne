@@ -14,7 +14,7 @@ import {
 import { renderCompletion } from './completion.ts'
 import { type Environment, type Invocation, parseInvocation } from './config.ts'
 import { TechneError } from './errors.ts'
-import { HarnessCheckout, type WorkspaceStatus } from './harness.ts'
+import { HarnessCheckout, SAFETY_EXITS, type WorkspaceStatus } from './harness.ts'
 import type { CommandRunner } from './process.ts'
 import { PROVIDERS } from './providers/index.ts'
 import {
@@ -61,13 +61,14 @@ const USAGE = [
   'host status [--host <name> | --all]',
   'host setup --host <name> [--pull] [--dry-run]',
   'host start --host <name> [--dry-run]',
-  'host stop --host <name> [--dry-run]',
-  'host teardown --host <name> [--dry-run]',
+  'host stop --host <name> [--now] [--dry-run]',
+  'host rebuild --host <name> [--dry-run] [--discard <repository>... | --discard-unreadable-host]',
+  'host withdraw --host <name> [--dry-run] [--discard <repository>... | --discard-unreadable-host]',
   'host connect [--host <name>] [--dry-run] [path]'
 ]
 
 const GLOBAL_OPTIONS = `Global options:
-  --host <name>                  host binding; setup, start, stop and teardown require it
+  --host <name>                  host binding; setup, start, stop, rebuild and withdraw require it
   --harness-dir <path>           local ki-techne-harness checkout holding recipes and host scripts
   --json                         machine-readable output where supported
   --full                         include local paths and identifiers in diag
@@ -89,19 +90,20 @@ const TARGETS: Readonly<Record<string, TargetKind>> = {
   'host setup': 'host',
   'host start': 'host',
   'host stop': 'host',
-  'host teardown': 'host',
+  'host rebuild': 'host',
+  'host withdraw': 'host',
   'host connect': 'host'
 }
 
 const SELECTING = new Set(['host status', 'host connect', 'host list', 'recipe list', 'recipe show'])
-const HOST_CHANGES = new Set(['host setup', 'host start', 'host stop', 'host teardown'])
+const HOST_CHANGES = new Set(['host setup', 'host start', 'host stop', 'host rebuild', 'host withdraw'])
 const DRY_RUNS = new Set([...HOST_CHANGES, 'host connect'])
 
 const GROUP_COMMANDS: Readonly<Record<string, string>> = {
   auth: 'login',
   controller: 'status or bootstrap',
   recipe: 'list or show',
-  host: 'list, add, status, setup, start, stop, teardown or connect'
+  host: 'list, add, status, setup, start, stop, rebuild, withdraw or connect'
 }
 
 function providerOptionLines(provider: Provider): string {
@@ -183,7 +185,8 @@ Commands:
   setup         converge a host's workspace over SSH
   start         start a stopped host
   stop          stop a running host: the kill switch
-  teardown      terminate a host after typed confirmation
+  rebuild       guarded removal, retaining credentials for rebuilding
+  withdraw      guarded removal, removing stored credentials
   connect       open a path on a host in Zed over SSH
 
 Commands that change a host require --host <name>. Others select by --host,
@@ -204,11 +207,14 @@ Run 'techne help host <command>' for command help.
       'Usage: techne [global options] host list\nList host bindings with recipe and provider, marking the one selection picks.\n',
     'host add':
       'Usage: techne [global options] host add <name> --recipe <recipe> [--provider <provider>]\nWrite hosts/<name>.toml with one provider table; refuses to overwrite and provisions nothing. --provider may be omitted only when the recipe supports one provider.\n',
-    'host status': `Usage: techne [global options] host status [--host <name> | --all]\nReport the selected host, or every host with --all, and when it runs the harness workspace report, read-only.\n${host}`,
+    'host status': `Usage: techne [global options] host status [--host <name> | --all]\nRead-only safety verdict: clean 0, at-risk 3, unknown 4, failed 1, unreachable 255. JSON uses host-status/v3 or host-status-list/v2. Stopped/absent hosts are unknown. Text expiry warnings are advisory and unavailable in JSON.\n${host}`,
     'host setup': `Usage: techne [global options] host setup --host <name> [--pull] [--dry-run]\nConverge the host's workspace by running the recipe's setup script over SSH; --pull fast-forwards clean checkouts.\n${host}`,
     'host start': `Usage: techne [global options] host start --host <name> [--dry-run]\nStart a stopped host and wait until it runs.\n${host}`,
-    'host stop': `Usage: techne [global options] host stop --host <name> [--dry-run]\nStop a running host: the kill switch.\n${host}`,
-    'host teardown': `Usage: techne [global options] host teardown --host <name> [--dry-run]\nTerminate the host after you type its instance ID; this cannot be undone. Reports the footprint that remains.\n${host}`,
+    'host stop': `Usage: techne [global options] host stop --host <name> [--now] [--dry-run]\nStop through the recipe guard; --now skips its advisory safety read.\n${host}`,
+    'host rebuild': `Usage: techne [global options] host rebuild --host <name> [--dry-run] [--discard <repository>... | --discard-unreadable-host]\nGuarded removal, retaining credentials for a subsequent owner rebuild. Interactive live execution requires separate binding-owner authority.\n${host}`,
+    'host withdraw': `Usage: techne [global options] host withdraw --host <name> [--dry-run] [--discard <repository>... | --discard-unreadable-host]\nGuarded removal, deleting stored credentials. Interactive live execution requires separate binding-owner authority.\n${host}`,
+    'host teardown':
+      'Usage: techne host teardown\nRemoved: use host rebuild or host withdraw; each delegates to the Harness guard.\n',
     'host connect': `Usage: techne [global options] host connect [--host <name>] [--dry-run] [path]\nCheck Tailscale reaches the host, then open path (default ~) in Zed over SSH.\n${host}`,
     completion: 'Usage: techne completion <bash|zsh>\nPrint shell completion source.\n'
   }
@@ -315,7 +321,10 @@ class Context {
 
   // What one recipe script receives: its declared binding variables and the provider's.
   hostEnvironment(binding: HostBinding, adapter: HostAdapter, script: string): Record<string, string> {
-    return { ...scriptEnvironment(binding.recipe, binding.provider, adapter.values, script), ...adapter.environment }
+    const declared = scriptEnvironment(binding.recipe, binding.provider, adapter.values, script)
+    return script === 'stop' || script === 'destroy'
+      ? { ...adapter.environment, ...declared }
+      : { ...declared, ...adapter.environment }
   }
 
   tailscaleName(binding: HostBinding): string {
@@ -641,16 +650,15 @@ async function statusOf(context: Context, binding: HostBinding): Promise<HostSta
   const adapter = context.hostAdapter(binding)
   const report = await adapter.status()
   if (report.state !== 'running') {
-    return { binding, report, workspace: { state: 'skipped', report: null, detail: `host is ${report.state}` } }
+    return {
+      binding,
+      report,
+      workspace: { state: 'skipped', outcome: 'unknown', safety: null, report: null, detail: `host is ${report.state}` }
+    }
   }
   const harness = new HarnessCheckout(context.dependencies.runner, context.recipes)
   const environment = context.hostEnvironment(binding, adapter, 'status')
-  const workspace: WorkspaceStatus = await harness.workspaceStatus(binding.recipe, environment)
-  // JSON output alone adds the advisory updates member; text shows the report's own section.
-  if (context.invocation.json && workspace.state === 'reported') {
-    const updates = await harness.workspaceUpdates(binding.recipe, environment)
-    if (updates !== undefined) workspace.updates = updates
-  }
+  const workspace = await harness.workspaceStatus(binding.recipe, environment, !context.invocation.json)
   return { binding, report, workspace }
 }
 
@@ -672,8 +680,10 @@ function printHostStatus({ binding, report, workspace }: HostStatusReport, io: C
   io.stdout(`instance: ${report.instanceId ?? 'absent'}\n`)
   io.stdout(`state: ${report.state}\n`)
   for (const [label, value] of Object.entries(report.details)) io.stdout(`${label}: ${value}\n`)
-  if (workspace.state === 'reported') {
-    const text = workspace.report as string
+  io.stdout(`safety: ${workspace.outcome}\n`)
+  if (workspace.detail !== null) io.stderr(`techne: warning: ${workspace.detail}\n`)
+  if (workspace.report !== null) {
+    const text = workspace.report
     io.stdout(`workspace: reported by the recipe's status script\n${text}${text.endsWith('\n') ? '' : '\n'}`)
   } else {
     io.stdout(`workspace: ${workspace.state}${workspace.state === 'skipped' ? ` (${workspace.detail})` : ''}\n`)
@@ -697,15 +707,15 @@ async function hostStatusAll(context: Context): Promise<number> {
     try {
       results.push(await statusOf(context, binding))
     } catch (error) {
-      results.push({ binding, error: errorText(error) })
+      results.push({ binding, error: error instanceof TechneError ? error.message : 'host report unavailable' })
     }
   }
-  const failed = results.some((result) => 'error' in result || result.workspace.state === 'failed')
+  const exits = results.map((result) => ('error' in result ? 1 : SAFETY_EXITS[result.workspace.outcome]))
   if (context.invocation.json) {
     const hosts = results.map((result) =>
       'error' in result ? { host: result.binding.name, error: result.error } : statusJson(result)
     )
-    context.io.stdout(`${JSON.stringify({ schema: 'techne/host-status-list/v1', hosts })}\n`)
+    context.io.stdout(`${JSON.stringify({ schema: 'techne/host-status-list/v2', hosts })}\n`)
   } else {
     results.forEach((result, index) => {
       if (index > 0) context.io.stdout('\n')
@@ -716,22 +726,18 @@ async function hostStatusAll(context: Context): Promise<number> {
       }
     })
   }
-  return failed ? 1 : 0
+  return [1, 255, 4, 3, 0].find((code) => exits.includes(code)) as number
 }
 
 async function hostStatus(context: Context): Promise<number> {
   if (context.invocation.all) return await hostStatusAll(context)
   const status = await statusOf(context, context.selected())
   if (context.invocation.json) {
-    context.io.stdout(`${JSON.stringify({ schema: 'techne/host-status/v2', ...statusJson(status) })}\n`)
+    context.io.stdout(`${JSON.stringify({ schema: 'techne/host-status/v3', ...statusJson(status) })}\n`)
   } else {
     printHostStatus(status, context.io)
   }
-  if (status.workspace.state === 'failed') {
-    context.io.stderr(`techne: error: workspace report failed: ${status.workspace.detail}\n`)
-    return 1
-  }
-  return 0
+  return SAFETY_EXITS[status.workspace.outcome]
 }
 
 async function hostSetup(context: Context): Promise<number> {
@@ -748,7 +754,7 @@ async function hostSetup(context: Context): Promise<number> {
     return 0
   }
   context.io.stdout(`running ${command} for host ${binding.name}\n`)
-  await harness.setup(script, args, context.hostEnvironment(binding, adapter, 'setup'))
+  await harness.execute(script, args, context.hostEnvironment(binding, adapter, 'setup'))
   return 0
 }
 
@@ -786,6 +792,8 @@ async function hostStop(context: Context): Promise<number> {
   rejectJson(context, 'host stop')
   const binding = context.explicit('host stop')
   const adapter = context.hostAdapter(binding)
+  const harness = new HarnessCheckout(context.dependencies.runner, context.recipes)
+  const script = harness.script(binding.recipe, 'stop', binding.provider)
   const host = await requireInstance(context, binding, adapter)
   if (host.state === 'stopped' || host.state === 'stopping') {
     context.io.stdout(`already ${host.state}; nothing to do\n`)
@@ -795,7 +803,12 @@ async function hostStop(context: Context): Promise<number> {
     context.io.stdout(`dry run: would stop ${host.instanceId}\n`)
     return 0
   }
-  await adapter.stop(host.instanceId)
+  await harness.execute(
+    script,
+    context.invocation.now ? ['--now'] : [],
+    context.hostEnvironment(binding, adapter, 'stop'),
+    'stop'
+  )
   context.io.stdout(`stopping ${host.instanceId}\n`)
   return 0
 }
@@ -806,32 +819,43 @@ function footprint(binding: HostBinding, adapter: HostAdapter): string[] {
   return [...section.footprint, ...binding.recipe.footprint].map((item) => derive(item, adapter.values) ?? item)
 }
 
-async function hostTeardown(context: Context): Promise<number> {
-  rejectJson(context, 'host teardown')
-  const binding = context.explicit('host teardown')
+async function hostRemoval(context: Context): Promise<number> {
+  const operation = context.invocation.command[1] as string
+  rejectJson(context, `host ${operation}`)
+  const binding = context.explicit(`host ${operation}`)
   if (!context.invocation.dryRun && !context.dependencies.interactive) {
-    throw new TechneError('host teardown requires an interactive terminal', 2)
+    throw new TechneError(`host ${operation} requires an interactive terminal`, 2)
   }
+  const declaration = binding.recipe.operations[operation]
+  if (declaration === undefined)
+    throw new TechneError(`recipe ${binding.recipe.name} declares no ${operation} operation`)
   const adapter = context.hostAdapter(binding)
-  const host = await requireInstance(context, binding, adapter)
-  context.io.stdout(`will TERMINATE ${host.instanceId}; this cannot be undone\n`)
+  const harness = new HarnessCheckout(context.dependencies.runner, context.recipes)
+  const script = harness.script(binding.recipe, declaration.script, binding.provider)
+  const args = [operation]
+  if (context.invocation.discard.length > 0) args.push('--discard', ...context.invocation.discard)
+  if (context.invocation.discardUnreadableHost) args.push('--discard-unreadable-host')
+  const remaining = footprint(binding, adapter)
+  context.io.stdout(`${operation}: ${declaration.summary}\n`)
+  context.io.stdout(
+    operation === 'rebuild'
+      ? 'Intent: retain credentials for a subsequent owner rebuild.\n'
+      : 'Intent: remove stored credentials through the Harness guard.\n'
+  )
   if (context.invocation.dryRun) {
-    context.io.stdout(`dry run: would terminate ${host.instanceId}\n`)
+    context.io.stdout(`dry run: would run ${['bash', script, ...args].join(' ')} for host ${binding.name}\n`)
+    context.io.stdout(
+      `Remaining footprint (recipe supplied; the guard reports the actual result):\n${remaining.map((item) => ` - ${item}\n`).join('')}`
+    )
     return 0
   }
-  const typed = await context.io.readLine('type the instance ID to confirm: ')
-  if (typed?.trim() !== host.instanceId) {
-    throw new TechneError('confirmation did not match; nothing done')
-  }
-  await adapter.terminate(host.instanceId)
-  context.io.stdout(`terminated ${host.instanceId}\n`)
-  const remaining = footprint(binding, adapter)
-  context.io.stdout(
-    remaining.length > 0
-      ? `teardown still needs, from recipe ${binding.recipe.name}:\n${remaining.map((item) => `  - ${item}\n`).join('')}`
-      : `recipe ${binding.recipe.name} lists no remaining footprint\n`
-  )
+  await harness.execute(script, args, context.hostEnvironment(binding, adapter, declaration.script), operation)
+  context.io.stdout(`completed guarded ${operation} for host ${binding.name}\n`)
   return 0
+}
+
+function hostTeardown(): never {
+  throw new TechneError('host teardown was removed; use host rebuild or host withdraw with the Harness guard', 2)
 }
 
 async function hostConnect(context: Context): Promise<number> {
@@ -872,6 +896,8 @@ const COMMAND_HANDLERS: Readonly<Record<string, (context: Context) => Promise<nu
   'host start': hostStart,
   'host stop': hostStop,
   'host teardown': hostTeardown,
+  'host rebuild': hostRemoval,
+  'host withdraw': hostRemoval,
   'host connect': hostConnect,
   'completion bash': (context) => {
     context.io.stdout(renderCompletion('bash', providerFlags(context.providers)))
@@ -889,11 +915,19 @@ function providerFlags(providers: readonly Provider[]): string[] {
 
 // Options that only some commands accept, refused before anything runs.
 function checkOptions(invocation: Invocation, name: string): void {
+  const removal = name === 'host rebuild' || name === 'host withdraw'
+  if (invocation.now && name !== 'host stop') throw new TechneError('--now is only supported for host stop', 2)
+  if ((invocation.discard.length > 0 || invocation.discardUnreadableHost) && !removal) {
+    throw new TechneError('discard options are only supported for host rebuild and host withdraw', 2)
+  }
+  if (invocation.discard.length > 0 && invocation.discardUnreadableHost) {
+    throw new TechneError('--discard and --discard-unreadable-host cannot be combined', 2)
+  }
   if (invocation.full && invocation.command[0] !== 'diag') {
     throw new TechneError('--full is only supported for diag', 2)
   }
   if (invocation.dryRun && !DRY_RUNS.has(name)) {
-    throw new TechneError('--dry-run is only supported for host setup, start, stop, teardown and connect', 2)
+    throw new TechneError('--dry-run is only supported for host setup, start, stop, rebuild, withdraw and connect', 2)
   }
   if (invocation.pull && name !== 'host setup') {
     throw new TechneError('--pull is only supported for host setup', 2)
@@ -958,6 +992,7 @@ export async function runCli(argv: readonly string[], dependencies: CliDependenc
       dependencies.io.stdout(usage)
       return 0
     }
+    if (name === 'host teardown') return hostTeardown()
     checkOptions(invocation, name)
     return await handler(new Context(invocation, dependencies, providers))
   } catch (error) {

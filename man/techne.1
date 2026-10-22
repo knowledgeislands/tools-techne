@@ -90,27 +90,24 @@ is required when the recipe supports more than one provider.
 Refuses to overwrite and provisions nothing.
 .TP
 .B host status [--all]
-Report the selected host's instance and state through its provider, without
-changing it. When the instance is running, also run the recipe's status
-script from the harness checkout and print its workspace report unchanged;
-JSON output carries it in a
-.B workspace
-object.
-When the recipe declares the
-.B techne/host-workspace/v1
-status document, JSON output also carries its optional
-.B updates
-member as
-.BR workspace.updates ,
-read once more with
-.BR --json ;
-it is left out when that read fails or is malformed, and never changes the
-workspace state or exit status.
+Report the selected host or every binding, read-only.
+One structured Harness read supplies the safety verdict, without fetching.
+Clean exits 0, at-risk 3, unknown 4, failure 1 and unreachable 255;
+malformed reports fail closed with exit 1.
+Stopped or absent hosts have skipped reports, unavailable safety and exit 4,
+without SSH or startup. Legacy text-only recipes cannot prove clean and exit 4.
+JSON schemas are techne/host-status/v3 and techne/host-status-list/v2.
+The workspace object contains outcome, state, nullable safety and report,
+and detail. Safety retains validated additive metadata; optional updates
+are projected from that same read and never change the verdict.
+Text mode additionally reads advisory text with a five-second connection
+timeout, preserving supplied expiry and pin warnings verbatim.
+Advisory failure warns without changing the verdict.
+JSON has no expiry/pin warning contract and makes no advisory read.
+All-host reporting continues after failures; exit precedence is
+1, 255, 4, 3, 0. Usage errors exit 2.
 .B --all
-reports every binding and cannot be combined with
-.B --host
-or provider options.
-A failed workspace report or binding exits 1 after the report.
+cannot be combined with a host selector or provider options.
 .TP
 .B host setup --host \fIname\fP [--pull]
 Check that Tailscale reaches the host, then run the recipe's setup script
@@ -121,13 +118,33 @@ fast-forwards clean checkouts on the host.
 .B host start --host \fIname\fP
 Start a stopped host and wait until it runs.
 .TP
-.B host stop --host \fIname\fP
-Stop a running host.
+.B host stop --host \fIname\fP [--now]
+Invoke the recipe stop script under its operator profile, warning and
+waiting as the Harness specifies. Risk never vetoes stopping.
+.B --now
+skips the advisory safety read. Stopped/stopping hosts are left alone.
+A missing script refuses without a direct provider fallback.
 .TP
-.B host teardown --host \fIname\fP
-Terminate the host after the instance identifier is typed at an
-interactive prompt, then list the recipe footprint still to remove.
-This cannot be undone.
+.B host rebuild|withdraw --host \fIname\fP [--dry-run]
+Delegate guarded removal to the declared provider destroy script under
+its administrator profile. Rebuild retains credentials for a subsequent
+owner rebuild and never provisions; withdraw removes stored credentials.
+Execution requires an interactive terminal and the Harness's own
+confirmation requirements; no undeclared confirmation variable is set.
+The Harness owns account, stack, same-host, risk and typed-confirmation
+guards, and prints remaining-footprint guidance.
+.BI --discard " repository..."
+names exactly the repositories at risk; empty or duplicate lists refuse.
+.B --discard-unreadable-host
+instead delegates the unreadable-host override and typed confirmation.
+The two overrides are mutually exclusive.
+Dry runs show intent and recipe footprint without any host probe or destroy.
+Each live operation needs independent binding-owner authority under the
+Techne Programme Focus.
+.TP
+.B host teardown
+Compatibility diagnostic only: exits 2 with rebuild/withdraw guidance,
+including the old dry-run form, without provider or subprocess calls.
 .TP
 .B host connect [path]
 Check that Tailscale reaches the selected host, then open
@@ -145,19 +162,22 @@ in
 then the only binding. A name that is not a binding is an error at every step.
 .BR setup ,
 .BR start ,
-.B stop
+.BR stop ,
+.BR rebuild
 and
-.B teardown
+.B withdraw
 change a host and require
 .B --host
 even when another step would select one.
-AWS host commands refuse credentials that are not the recipe's operator role
+AWS status/start/stop commands refuse credentials that are not
+the recipe's operator role
 in the expected account, and refuse unless exactly one instance matches the
 recipe's selectors.
 .BR setup ,
 .BR start ,
 .BR stop ,
-.B teardown
+.BR rebuild ,
+.B withdraw
 and
 .B connect
 accept
@@ -194,7 +214,9 @@ Select the host binding. Required by
 .BR start ,
 .B stop
 and
-.BR teardown .
+.BR rebuild
+and
+.BR withdraw .
 .TP
 .BI "--harness-dir " path
 Select the local ki-techne-harness checkout holding the recipes and host

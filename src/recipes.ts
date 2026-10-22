@@ -35,7 +35,13 @@ export interface RecipeStatus {
   exit: Readonly<Record<string, number>>
 }
 
+export interface RecipeOperation {
+  summary: string
+  script: string
+}
+
 export interface Recipe extends RecipeSection {
+  operations: Readonly<Record<string, RecipeOperation>>
   name: string
   summary: string
   runtime: string
@@ -109,6 +115,16 @@ function statusDeclaration(manifest: TomlTable, where: string): RecipeStatus | n
   return { schema: requiredString(table, 'schema', at), exit }
 }
 
+function operations(manifest: TomlTable, where: string): Record<string, RecipeOperation> {
+  const result: Record<string, RecipeOperation> = {}
+  for (const [name, value] of Object.entries(optionalTable(manifest, 'operations', where))) {
+    const at = `${where} operations.${name}`
+    if (!isTable(value)) throw new TechneError(`${at} must be a table`)
+    result[name] = { summary: requiredString(value, 'summary', at), script: requiredString(value, 'script', at) }
+  }
+  return result
+}
+
 function section(table: TomlTable, where: string): RecipeSection {
   return {
     paths: strings(optionalTable(table, 'paths', where), `${where} paths`),
@@ -145,6 +161,7 @@ export function parseRecipe(manifest: TomlTable, directoryName: string, where: s
     providers,
     provider,
     status: statusDeclaration(manifest, where),
+    operations: operations(manifest, where),
     ...section(manifest, where)
   }
 }

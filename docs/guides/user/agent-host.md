@@ -63,7 +63,7 @@ A build mints the host's Tailscale auth key from an OAuth client kept in 1Passwo
 tailscale_oauth_item = "op://<vault>/ki-techne-agent-host-tailscale-oauth"
 ```
 
-The value is a 1Password reference, `op://<vault>/<item>` with optional further segments, never the secret it names; Techne refuses any other form before running anything, without repeating the value. Techne never reads the item with `op`: it passes the reference only to the recipe scripts that declare it, which the harness recipe sets to the build and teardown, and the harness's [Key minting](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#key-minting) reads it there. Leave the field out and Techne sets nothing, so your own export keeps working. Techne runs neither script yet, so until it does, export the variable for a build you run by hand.
+The value is a 1Password reference, `op://<vault>/<item>` with optional further segments, never the secret it names; Techne refuses any other form before running anything, without repeating the value. Techne never reads the item with `op`: it passes the reference only to the recipe scripts that declare it, which the harness recipe sets to the build and teardown, and the harness's [Key minting](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md#key-minting) reads it there. Leave the field out and Techne sets nothing, so your own export keeps working. Rebuild and withdraw now invoke the recipe destroy script; provisioning remains an owner operation.
 
 ## Select a host
 
@@ -74,7 +74,7 @@ Read-only commands act on one selected host, chosen by the first of:
 3. `default_host` in `~/.config/techne/config.toml`;
 4. the only binding, when there is exactly one.
 
-A name that is not a binding is an error; Techne never falls through to the next step. `host setup`, `start`, `stop` and `teardown` change a host and always require `--host`, even when a later step would select one.
+A name that is not a binding is an error; Techne never falls through to the next step. `host setup`, `start`, `stop`, `rebuild` and `withdraw` change a host and always require `--host`, even when a later step would select one.
 
 ## Provider options
 
@@ -87,14 +87,14 @@ The AWS provider reads its values from the binding's `[aws]` table. Override the
 | Expected account | `--aws-account` | `account` |
 | Operator profile, used for EC2 | `--aws-operator-profile` | `operator_profile` |
 
-A provider option applies only to a host whose binding uses that provider, and cannot be combined with `host status --all`. `AWS_PROFILE` and `AWS_REGION` are passed to every AWS call and recipe script as the resolved values.
+A provider option applies only to a host whose binding uses that provider, and cannot be combined with `host status --all`. `AWS_REGION` uses the resolved region. Stop receives the recipe’s operator profile as `AWS_PROFILE`; destroy receives its administrator profile. Status and setup keep their existing environment resolution.
 
-Every AWS host command applies the same guards before it changes anything:
+AWS status, start and stop apply these provider checks:
 
 - it refuses credentials that are not the recipe's operator role in the expected account;
 - it acts only on the one non-terminated instance matching the recipe's selectors, and refuses when there is none or more than one.
 
-`setup`, `start`, `stop`, `teardown` and `connect` accept `--dry-run`, which runs the same checks and prints what would happen without changing anything.
+`setup`, `start`, `stop`, `rebuild`, `withdraw` and `connect` accept `--dry-run`. Setup/connect retain reachability checks and start/stop retain provider checks. Removal previews read only local declarations, with no host or safety probe.
 
 ## Check a host
 
@@ -105,11 +105,11 @@ techne host status
 techne host status --all
 ```
 
-The report names the host, its recipe and provider, the instance, its state, the selector and the region; an absent host reports `absent` rather than an error. When the instance is running, Techne also runs the recipe's status script and prints its workspace report as the harness renders it. For a host that is not running the workspace section says `skipped`.
+The report names the host, recipe, provider and instance state. For a running host whose recipe declares the structured contract, one `status --json` read supplies the authoritative safety verdict without `--fetch`. Clean exits 0, at-risk 3, unknown 4, failure 1 and unreachable 255. Malformed or contradictory reports fail closed with exit 1. A stopped or absent host keeps its provider state and skipped report, with safety unavailable and outcome unknown, exiting 4 without SSH or starting it. A legacy recipe can still supply text, but cannot establish structured safety and exits 4.
 
-`--json` prints one object with the schema `techne/host-status/v2`; the `workspace` object has a `state` of `reported`, `skipped` or `failed`, the harness `report` text, and a `detail` explaining a skip or failure. `--all` reports every binding in turn, as `techne/host-status-list/v1` with `--json`; a binding that cannot be reported shows its error and the others continue. A failed workspace report or binding exits 1 after the report. The command only reads from AWS and the host.
+`--json` uses `techne/host-status/v3`; `--all` uses `techne/host-status-list/v2`. `workspace.safety` contains the validated Harness document, retaining additive metadata, or null when unavailable. `workspace.outcome` records the verdict, `state` distinguishes reported, skipped, failed and unreachable, `report` is nullable text and `detail` explains missing evidence. The optional validated `workspace.updates` projection comes from that same document, with explicit nulls retained and malformed updates omitted; it never changes safety or exit status. The Harness’s optional profile signal remains within `safety`.
 
-The text report shows the harness's own Updates section: pending and security updates, whether a reboot is required and since when, and the Livepatch state. With `--json`, when the recipe declares the `techne/host-workspace/v1` status document and the workspace was reported, Techne reads that document once more and copies its `updates` member into `workspace.updates`: `os`, `pending`, `security`, `reboot_required`, `reboot_required_since`, `reboot_packages` and `livepatch`, each `null` when the host could not tell. `updates` is `null` when the document says so, and is left out when the recipe declares no document or that read fails or returns anything malformed; Techne never fills in a zero or `false`. The updates are advisory only: they never change the workspace state or the exit status, which still come from the text report.
+Text mode additionally requests the Harness text report with a five-second connection timeout. Supplied expiry, overdue, unknown-date and pin warnings are printed verbatim and do not change the structured verdict. Failure of this advisory read warns without replacing the verdict. JSON mode makes no advisory read: expiry and pin warnings are unavailable there until the Harness declares a structured contract for them. With `--all`, every binding is attempted independently; combined exit precedence is failure 1, unreachable 255, unknown 4, at-risk 3, then clean 0. Usage errors exit 2.
 
 ## Set up the workspace
 
@@ -125,7 +125,7 @@ Setup converges the host's workspace by running the recipe's setup script from y
 
 Run `techne host start --host <name>` to start a stopped host; it waits until the instance is running. A running host is left alone, and a host that is still starting or stopping is refused until it settles.
 
-Run `techne host stop --host <name>` as the kill switch. It stops a running host and leaves a stopped or stopping host alone. Stopping keeps the disk, so work on the host survives, but anything not pushed stays only on the host.
+Run `techne host stop --host <name>` as the kill switch. It invokes the recipe’s stop script under the operator profile and leaves a stopped or stopping host alone. The script owns the bounded safety warning and wait; at-risk, unknown or unreadable work never vetoes stopping. `--now` skips that warning read. A missing stop script refuses rather than falling back to a direct provider stop. Stopping keeps the disk, so work on the host survives, but anything not pushed stays only on the host.
 
 ## Connect
 
@@ -137,15 +137,20 @@ techne host connect [path]
 
 Techne checks that Tailscale is up on your machine and that the host's tailnet name answers a Tailscale ping, then opens `ssh://<tailnet name>/<path>` in Zed, defaulting to your home directory. `connect` makes no AWS call: start a stopped host with `techne host start` first.
 
-## Tear down
+## Rebuild and withdraw
 
-Run:
+Preview removal without a safety probe or destroy invocation:
 
 ```sh
-techne host teardown --host agent-host
+techne host rebuild --host agent-host --dry-run
+techne host withdraw --host agent-host --dry-run
 ```
 
-Teardown terminates the instance, which cannot be undone. It needs an interactive terminal and asks you to type the instance ID; anything else stops it without a change. Afterwards it lists what the recipe says still needs removing, such as its stack, parameters, operator role, tailnet device and SSH entry, named for this binding. Push any work from the host before you tear it down.
+Rebuild removes the host while retaining credentials for a subsequent owner rebuild; it never provisions a replacement. Withdraw removes the host and stored credentials. Both resolve their declared recipe operation through the provider’s destroy path, use the administrator profile and require an interactive terminal for execution. The Harness owns account, stack and same-host checks, safety refusal, typed confirmation and idempotent cleanup; Techne never terminates the instance first. See the Harness [guarded removal instructions](https://github.com/knowledgeislands/ki-techne-harness/blob/main/docs/guides/operator/agent-host.md) for its own confirmation requirements. Techne never sets undeclared confirmation variables; the operator’s environment passes through.
+
+`--discard <repository>...` must name exactly the at-risk repositories; empty or duplicate entries are refused. It cannot be combined with `--discard-unreadable-host`, which delegates the unreadable-host override and typed confirmation to the Harness. Neither option bypasses its other guards. Dry runs describe credential retention/removal and the recipe-supplied footprint; actual runs show the Harness’s own remaining-footprint guidance and report failure truthfully.
+
+`host teardown`, including its old dry-run form, now exits 2 and points to rebuild/withdraw without any provider or subprocess calls. Every live operation remains separately authorised and run by the binding owner under the Techne Programme Focus. This CLI delivery and its Ready record grant no live authority.
 
 ## Recovery
 

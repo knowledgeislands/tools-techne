@@ -4,14 +4,14 @@ area: CLI
 title: Guarded host commands
 project: agent-host
 kind: deliver
-status: draft
-horizon: next
+status: awaiting-review
+horizon: now
 size: l
 blocks: []
 blocked_by: []
-baseline_ref: null
+baseline_ref: 40156309a933a21f4292c491751625437a6fe599
 created_at: 2026-10-07T20:51:00Z
-updated_at: 2026-10-20T05:55:52Z
+updated_at: 2026-10-22T02:01:39Z
 ---
 
 # Guarded Host Commands
@@ -43,18 +43,18 @@ Source review on 20 October 2026 used tools-techne `e7dc0183c7858193c7260cd46f77
 
 ## Steps
 
-- [ ] Extend the existing `RecipeStatus` parsing with named `[operations.<name>]` entries, each a summary and a `script` naming a key of the selected provider's paths. Validate known declarations and resolve each operation's script through those paths. Keep legacy recipes usable for status; refuse a guarded operation with missing metadata/path before any subprocess. Expose the declared operations through recipe JSON without copying Harness scripts, and add them to the test fixture.
-- [ ] Make the declared structured report authoritative for single-host and all-host safety status in both output modes, replacing the host-patching delivery's text-first read and its separate `workspaceUpdates` read with one structured read per running host. Request `--json` without `--fetch`, validate schema, outcome/exit agreement, repositories/problems types and known host fields, and preserve unknown additive members. Embed the validated document as `workspace.safety` while retaining `workspace.report` as nullable text; keep `workspace.updates` as the existing validated projection of that same document's `updates` member, so it still never changes state or exit. Bump outer schemas to `techne/host-status/v3` and `techne/host-status-list/v2`. Distinguish reported clean/at-risk/unknown from failed or unreachable; never collapse 3/4 into failed or convert missing evidence into clean. For stopped/absent hosts, retain provider state and skipped report but expose safety as unavailable/unknown and return 4 without attempting SSH or starting a host.
-- [ ] Preserve the Harness text report as a bounded advisory second read in text mode, including expiry and pin warnings verbatim; it cannot replace the structured verdict. A text read exiting with the declared clean, at-risk or unknown status is a report, not a failure. JSON mode needs only the structured read, leaving text null and documenting that expiry is unavailable there until Harness declares it. Text-read failure gives a concise warning and leaves the validated outcome intact. For valid single reports return 0/3/4; actual failure returns 1 and unreachable returns 255. For mixed `--all`, continue independently and select precedence failed 1, unreachable 255, unknown 4, at-risk 3, clean 0; usage errors remain 2. Malformed or contradictory documents fail closed with exit 1 and no raw subprocess output in diagnostics.
-- [ ] Make script environments role-correct: a recipe parameter scoped to the running script, such as `operator_profile` for stop and `admin_profile` for destroy, must not be overwritten by the provider adapter's default `AWS_PROFILE`. Change only `hostEnvironment` or the typed provider resolution seam; status and setup environments stay as they are.
-- [ ] Route `host stop --host <name> [--now]` through the recipe's stop script with script-specific binding environment and operator profile. Preserve explicit-host and provider selector checks, stopped/stopping no-op and dry-run behaviour. Let the script own the short read, warnings and wait; at-risk, unknown or unreadable work never vetoes stopping. `--now` belongs only to stop and skips the guard read. Do not fall back to an unguarded provider stop when a recipe lacks its script.
-- [ ] Add `host rebuild` and `host withdraw` with explicit `--host`, optional `--dry-run`, and mutually exclusive `--discard <repository>...` or `--discard-unreadable-host`. Validate grammar before calls; reject empty discard lists, duplicate entries, incompatible flags and misplaced options. Resolve the named operation to the recipe's destroy path, invoke it interactively with operation/override arguments, and run it under the administrator profile from the role-correct environment. Preserve provider account/region/selector checks and the script's exact-risk-set, same-host and typed-confirmation guards. The CLI never sets `CONFIRM_DESTROY_AGENT_HOST` or any other undeclared variable; the operator's own environment passes through, and the script's refusal without it is reported as a failure. Never pre-terminate, provision or emulate destruction in the CLI; rebuild is removal for subsequent owner rebuilding. Dry-run renders intent and remaining footprint without running destroy or a live safety probe. Noninteractive destructive execution refuses; propagate script failure without reporting success.
-- [ ] Keep `host teardown` as a bounded compatibility diagnostic: exit 2, point to rebuild/withdraw and make zero provider/subprocess calls, including for its old dry-run form. Remove its destructive handler and advertised completion entry. Update all public help, completion, user guide, manual and changelog together; document the schema/exit change, stopped-host unknown state, overrides, role separation, expiry limitation and independent owner authority for every live operation.
-- [ ] Add bounded public `runCli(args, dependencies)` fake-runner cases from Verify, with minimal isolated recipe fixtures carrying current manifest provenance. Run the local definition-of-done gates, applicable audits and focused diff review; submit future delivery for human review without acceptance or release.
+- [x] Extend the existing `RecipeStatus` parsing with named `[operations.<name>]` entries, each a summary and a `script` naming a key of the selected provider's paths. Validate known declarations and resolve each operation's script through those paths. Keep legacy recipes usable for status; refuse a guarded operation with missing metadata/path before any subprocess. Expose the declared operations through recipe JSON without copying Harness scripts, and add them to the test fixture.
+- [x] Make the declared structured report authoritative for single-host and all-host safety status in both output modes, replacing the host-patching delivery's text-first read and its separate `workspaceUpdates` read with one structured read per running host. Request `--json` without `--fetch`, validate schema, outcome/exit agreement, repositories/problems types and known host fields, and preserve unknown additive members. Embed the validated document as `workspace.safety` while retaining `workspace.report` as nullable text; keep `workspace.updates` as the existing validated projection of that same document's `updates` member, so it still never changes state or exit. Bump outer schemas to `techne/host-status/v3` and `techne/host-status-list/v2`. Distinguish reported clean/at-risk/unknown from failed or unreachable; never collapse 3/4 into failed or convert missing evidence into clean. For stopped/absent hosts, retain provider state and skipped report but expose safety as unavailable/unknown and return 4 without attempting SSH or starting a host.
+- [x] Preserve the Harness text report as a bounded advisory second read in text mode, including expiry and pin warnings verbatim; it cannot replace the structured verdict. A text read exiting with the declared clean, at-risk or unknown status is a report, not a failure. JSON mode needs only the structured read, leaving text null and documenting that expiry is unavailable there until Harness declares it. Text-read failure gives a concise warning and leaves the validated outcome intact. For valid single reports return 0/3/4; actual failure returns 1 and unreachable returns 255. For mixed `--all`, continue independently and select precedence failed 1, unreachable 255, unknown 4, at-risk 3, clean 0; usage errors remain 2. Malformed or contradictory documents fail closed with exit 1 and no raw subprocess output in diagnostics.
+- [x] Make script environments role-correct: a recipe parameter scoped to the running script, such as `operator_profile` for stop and `admin_profile` for destroy, must not be overwritten by the provider adapter's default `AWS_PROFILE`. Change only `hostEnvironment` or the typed provider resolution seam; status and setup environments stay as they are.
+- [x] Route `host stop --host <name> [--now]` through the recipe's stop script with script-specific binding environment and operator profile. Preserve explicit-host and provider selector checks, stopped/stopping no-op and dry-run behaviour. Let the script own the short read, warnings and wait; at-risk, unknown or unreadable work never vetoes stopping. `--now` belongs only to stop and skips the guard read. Do not fall back to an unguarded provider stop when a recipe lacks its script.
+- [x] Add `host rebuild` and `host withdraw` with explicit `--host`, optional `--dry-run`, and mutually exclusive `--discard <repository>...` or `--discard-unreadable-host`. Validate grammar before calls; reject empty discard lists, duplicate entries, incompatible flags and misplaced options. Resolve the named operation to the recipe's destroy path, invoke it interactively with operation/override arguments, and run it under the administrator profile from the role-correct environment. Preserve provider account/region/selector checks and the script's exact-risk-set, same-host and typed-confirmation guards. The CLI never sets `CONFIRM_DESTROY_AGENT_HOST` or any other undeclared variable; the operator's own environment passes through, and the script's refusal without it is reported as a failure. Never pre-terminate, provision or emulate destruction in the CLI; rebuild is removal for subsequent owner rebuilding. Dry-run renders intent and remaining footprint without running destroy or a live safety probe. Noninteractive destructive execution refuses; propagate script failure without reporting success.
+- [x] Keep `host teardown` as a bounded compatibility diagnostic: exit 2, point to rebuild/withdraw and make zero provider/subprocess calls, including for its old dry-run form. Remove its destructive handler and advertised completion entry. Update all public help, completion, user guide, manual and changelog together; document the schema/exit change, stopped-host unknown state, overrides, role separation, expiry limitation and independent owner authority for every live operation.
+- [x] Add bounded public `runCli(args, dependencies)` fake-runner cases from Verify, with minimal isolated recipe fixtures carrying current manifest provenance. Run the local definition-of-done gates, applicable audits and focused diff review; submit future delivery for human review without acceptance or release.
 
 ## Files touched
 
-Expected future implementation: [src/recipes.ts](../../src/recipes.ts), [src/harness.ts](../../src/harness.ts), [src/cli.ts](../../src/cli.ts), the existing invocation parser and completion modules identified during implementation, [src/tests/cli.test.ts](../../src/tests/cli.test.ts), including the host-patching delivery's updates cases, the [test recipe fixture](../../src/tests/fixtures/agent-host.recipe.toml) and other minimal recipe fixtures, [agent-host user guide](../guides/user/agent-host.md), [man/techne.1](../../man/techne.1) and [CHANGELOG.md](../../CHANGELOG.md). The role-correct environment changes `hostEnvironment` in [src/cli.ts](../../src/cli.ts) or, if cleaner, only the typed resolution seam in [AWS provider resolution](../../src/providers/aws/index.ts). No provider infrastructure implementation, binding/configuration, dependency, Harness or Principal changes are planned. The 20 October replan edits only this record.
+Delivered implementation: [src/recipes.ts](../../src/recipes.ts), [src/harness.ts](../../src/harness.ts), [src/cli.ts](../../src/cli.ts), the existing invocation parser and completion modules identified during implementation, [src/tests/cli.test.ts](../../src/tests/cli.test.ts), including the host-patching delivery's updates cases, the [test recipe fixture](../../src/tests/fixtures/agent-host.recipe.toml) and other minimal recipe fixtures, [agent-host user guide](../guides/user/agent-host.md), [man/techne.1](../../man/techne.1) and [CHANGELOG.md](../../CHANGELOG.md). The role-correct environment changes `hostEnvironment` in [src/cli.ts](../../src/cli.ts) or, if cleaner, only the typed resolution seam in [AWS provider resolution](../../src/providers/aws/index.ts). No provider infrastructure implementation, binding/configuration, dependency, Harness or Principal changes are planned. The 20 October replan edited only this record; the 22 October delivery changes the listed CLI and documentation paths.
 
 ## Verify
 
@@ -68,7 +68,7 @@ Future tests use temporary local files, synthetic provider responses and an inje
 
 ## Dependencies / blocks
 
-The delivered Harness pilot and manifest satisfy the source prerequisite; `blocks: []`, `blocked_by: []` and `baseline_ref: null` stay unchanged. CLI-006 planning does not depend on vega recreation. Ready requires Kris's review of this replanned record, then separately authorised local implementation; live operations remain the binding owner's.
+The delivered Harness pilot and manifest satisfy the source prerequisite; `blocks: []`, `blocked_by: []` and `baseline_ref: 40156309a933a21f4292c491751625437a6fe599` stay unchanged. CLI-006 planning does not depend on vega recreation. Ready requires Kris's review of this replanned record, then separately authorised local implementation; live operations remain the binding owner's.
 
 The [host-patching delivery](https://github.com/knowledgeislands/tools-techne/blob/854e60a3c02d7d02fdf1ca43b9c32541c6a0db04/docs/roadmap/KI-TOOL-TECHNE-CLI-008-host-patching-fields.md) landed first, as recommended, and this plan is re-grounded against its result: its text-authoritative status and supplemental updates read are reconciled in the status steps above. [KI-TOOL-TECHNE-CLI-009 (pruned)](https://github.com/knowledgeislands/tools-techne/blob/78f88656/docs/roadmap/KI-TOOL-TECHNE-CLI-009-tailscale-oauth-binding-field.md) adds a binding field the recipe will pass to `destroy`; it flows through the role-correct script environment without a change here. Neither is a build dependency, but serialise their writers because both touch binding and script-environment code. No shared-project or ki-batch authority is inferred.
 
@@ -88,7 +88,50 @@ Align command-local/root help, completion, user guide, manual and changelog for 
 
 ### Roadmap
 
-Keep this canonical record draft Next with null baseline. The 20 October replan publishes a reviewable plan and leaves Ready/implementation to subsequent authority. No new record, closure or prune.
+The 20 October replan left this canonical record draft Next with a null baseline. The 22 October approval releases Ready and the separate overnight task authorises offline delivery, which records its baseline and submits the result for review. No new record, acceptance, closure or prune.
+
+## Review
+
+### Delivered
+
+The approved guarded-host boundary is implemented locally from immutable baseline `40156309a933a21f4292c491751625437a6fe599`. The Ready release and offline implementation authority are recorded below; the record transitioned through Ready and in-progress to awaiting-review in this delivery. Read-only manifest/script contract inspection used local Harness `32f1b1e489a6f9a38bb2578b15150a13f04775db`; the fixture keeps minimal isolated setup/status defaults. All behaviour was exercised through isolated fixture checkouts and injected subprocess responses; no AWS, SSH, Tailscale, real Harness script or live host was invoked. No provisioning, release, acceptance or infrastructure changes are included.
+
+### Change Summary
+
+[Recipe parsing](../../src/recipes.ts) exposes declared operations and validates their metadata. [Harness execution](../../src/harness.ts) validates the authoritative structured document, outcome/exit agreement, repository/problem and host shapes, preserves additive metadata and projects optional updates from the same read. [CLI commands](../../src/cli.ts) expose status v3/list v2, stopped/absent unknown status, aggregate exit precedence, bounded advisory text, role-correct stop/destroy environments, guarded removal and a zero-effect teardown diagnostic. [Invocation parsing](../../src/config.ts), [completion](../../src/completion.ts), [public CLI tests](../../src/tests/cli.test.ts), the [minimal recipe fixture](../../src/tests/fixtures/agent-host.recipe.toml), README, user guide, manual and changelog are aligned.
+
+No plan expansion was required. An additive `workspace.outcome` makes unavailable evidence explicit while `workspace.safety` remains nullable. A legacy recipe keeps its text fallback but returns unknown, never a fabricated structured clean verdict. Reports claiming safer outcomes than their repository or inventory evidence fail closed. Malformed optional updates are omitted from the safety document and its projection without changing the core verdict.
+
+### Verification
+
+All final gates passed on 22 October 2026 using the pinned root Bun 1.4.2. Installed local binaries were used instead of download-capable `bunx`; frozen dependency checks used offline mode and skipped lifecycle scripts to avoid network and environment mutation.
+
+- `bun install --offline --frozen-lockfile --ignore-scripts`: passed, lockfile unchanged.
+- `bun install --offline --frozen-lockfile --ignore-scripts --cwd tooling/depcruise`: passed, lockfile unchanged.
+- `bun run test`: passed, 109 tests across five files.
+- `bun run test:coverage`: passed, 100% statements, branches, functions and lines (1,177 statements, 847 branches, 229 functions, 1,064 lines).
+- `bun run self:typecheck`: passed.
+- `bun run build`: passed.
+- `bun run self:release:test`: passed, local archive/installer fixtures only; an earlier manual line-length failure was corrected before this final run.
+- `bun run ki:tools:lint-man`: passed.
+- `node_modules/.bin/biome check .`: passed.
+- `node_modules/.bin/rumdl check .`: passed.
+- `ki repo audit --repo . --progress never --concise --reporter-levels FAIL`: passed, no failures; the same six warning findings as preflight remain. This includes the declared work-selector, roadmap, authoring, engineering and tool-repository layers; judgment-only criteria are not automated passes.
+- `git diff --check`: passed.
+
+Focused diff review confirmed bounded command grammar, no direct destructive provider call, script-specific roles, truthful refusal handling, continuation after unexpected provider failures, bounded diagnostics and aligned help/completion/manual guidance. No actual host operation occurred.
+
+### Outstanding concerns
+
+No live verification is included or required for this offline delivery boundary. Any attended status/stop/rebuild/withdraw exercise on vega is a separately authorised binding-owner operation for Kris; no live step blocks the local implementation, and none was attempted. The Harness’s own risk-set, typed-confirmation and cleanup internals are modelled as injected script results, not reimplemented or certified by CLI tests. Expiry/pin warnings remain text-only until the Harness declares their JSON contract. Acceptance and any product release remain outstanding human decisions, with no new work record created under CAPTURE-GATE.
+
+### Post-change review
+
+The delivered CLI follows the Harness guard instead of directly terminating or reproducing safety checks. Malformed or absent safety evidence cannot appear clean, advisory read failures cannot override a validated verdict, removal dry runs make no subprocess calls, and script failures cannot produce a success message. Provider selection checks and status/setup environment behaviour remain covered. The final gates passed and the change is awaiting review; it supplies no authority for live operations.
+
+### Mini recap
+
+Guarded stop/rebuild/withdraw and authoritative status are delivered within the approved boundary. Tests cover outcomes, malformed documents and updates, mixed-host continuation/precedence, script roles, exact argv, refusal results, grammar and zero-effect compatibility. Operator guidance is the durable learning route; no cross-repository knowledge promotion or new backlog item is needed. Review and any attended owner exercise remain with Kris.
 
 ## Discussion
 
@@ -119,3 +162,7 @@ On 20 October 2026 the agent-host work's resume run released this record under K
 ### Replan
 
 On 20 October 2026 the agent-host work re-checked this plan against the current tools-techne and Harness sources, as the plan asked, under Kris's overnight authority. The goal, boundary and destination are unchanged. The re-check found the host-patching delivery's `[status]` parsing, updates validation and separate updates read to build on, the shipped text route reporting at-risk and unknown hosts as failed, the provider profile overriding the recipe's operator and administrator profiles in script environments, and the destroy script's undeclared confirmation variable. Current state, Steps, Files touched, Verify and Dependencies now carry them. The record stays draft until Kris reviews it.
+
+### Ready and offline delivery authority
+
+On 22 October 2026 at 02:25 BST, Kris answered TECHNE-006-REVIEW a), releasing this replanned record to Ready. The overnight burn-down task separately authorises its local implementation using isolated fixtures and dry runs only, with no real host operations, acceptance or release.

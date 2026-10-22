@@ -1,14 +1,14 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { TechneError } from './errors.ts'
-import { type CommandRunner, failureMessage } from './process.ts'
+import type { CommandResult, CommandRunner } from './process.ts'
 import type { Recipe, RecipeCatalogue } from './recipes.ts'
 import { isTable, type TomlTable } from './toml.ts'
 
 // The provider-neutral scripts a recipe names under [paths].
-export type HarnessScript = 'setup' | 'status'
+export type HarnessScript = string
 
-export type WorkspaceState = 'reported' | 'skipped' | 'failed'
+export type WorkspaceState = 'reported' | 'skipped' | 'failed' | 'unreachable'
 
 // The status document's optional updates member; each null is unknown.
 export interface HostUpdates {
@@ -21,7 +21,18 @@ export interface HostUpdates {
   livepatch: string | null
 }
 
+export type SafetyOutcome = 'clean' | 'at-risk' | 'unknown' | 'failed' | 'unreachable'
+export const SAFETY_EXITS: Readonly<Record<SafetyOutcome, number>> = {
+  clean: 0,
+  failed: 1,
+  'at-risk': 3,
+  unknown: 4,
+  unreachable: 255
+}
+
 export interface WorkspaceStatus {
+  outcome: SafetyOutcome
+  safety: TomlTable | null
   state: WorkspaceState
   report: string | null
   detail: string | null
@@ -86,8 +97,8 @@ export class HarnessCheckout {
     this.recipes = recipes
   }
 
-  script(recipe: Recipe, name: HarnessScript): string {
-    const relative = recipe.paths[name]
+  script(recipe: Recipe, name: HarnessScript, provider?: string): string {
+    const relative = provider === undefined ? recipe.paths[name] : recipe.provider[provider]?.paths[name]
     if (relative === undefined) {
       throw new TechneError(`recipe ${recipe.name} declares no ${name} script under [paths]`)
     }
@@ -98,53 +109,142 @@ export class HarnessCheckout {
     return path
   }
 
-  async setup(script: string, args: readonly string[], env: Readonly<Record<string, string>>): Promise<void> {
-    const result = await this.runner.run('bash', [script, ...args], {
-      mode: 'interactive',
-      env,
-      cwd: this.recipes.harnessDir
-    })
-    if (result.exitCode !== 0) {
-      throw new TechneError(`harness setup failed with exit status ${result.exitCode}`)
-    }
-  }
-
-  async workspaceStatus(recipe: Recipe, env: Readonly<Record<string, string>>): Promise<WorkspaceStatus> {
-    let script: string
+  async execute(
+    script: string,
+    args: readonly string[],
+    env: Readonly<Record<string, string>>,
+    operation = 'setup'
+  ): Promise<void> {
+    let result: CommandResult
     try {
-      script = this.script(recipe, 'status')
-    } catch (error) {
-      return { state: 'failed', report: null, detail: (error as TechneError).message }
-    }
-    const result = await this.runner.run('bash', [script], { env, cwd: this.recipes.harnessDir })
-    if (result.exitCode !== 0) {
-      return { state: 'failed', report: null, detail: failureMessage('harness status script failed', result) }
-    }
-    return { state: 'reported', report: result.stdout, detail: null }
-  }
-
-  // An advisory read of the updates member from the recipe's JSON status
-  // report; undefined when the recipe declares none or the read does not
-  // yield a valid one. It never decides the workspace state or the exit status.
-  async workspaceUpdates(
-    recipe: Recipe,
-    env: Readonly<Record<string, string>>
-  ): Promise<HostUpdates | null | undefined> {
-    const declared = recipe.status
-    if (declared === null || declared.schema !== WORKSPACE_SCHEMA) return undefined
-    try {
-      const result = await this.runner.run('bash', [this.script(recipe, 'status'), '--json'], {
+      result = await this.runner.run('bash', [script, ...args], {
+        mode: 'interactive',
         env,
         cwd: this.recipes.harnessDir
       })
-      const document = parseDocument(result.stdout)
-      if (document === null || document['schema'] !== declared.schema) return undefined
-      const outcome = document['outcome']
-      if (typeof outcome !== 'string' || !REPORTING_OUTCOMES.includes(outcome)) return undefined
-      if (declared.exit[outcome] !== result.exitCode) return undefined
-      return 'updates' in document ? updatesOf(document['updates']) : undefined
     } catch {
-      return undefined
+      throw new TechneError(`harness ${operation} could not run`)
+    }
+    if (result.exitCode !== 0) {
+      throw new TechneError(`harness ${operation} failed with exit status ${result.exitCode}`)
     }
   }
+
+  async workspaceStatus(
+    recipe: Recipe,
+    env: Readonly<Record<string, string>>,
+    text: boolean
+  ): Promise<WorkspaceStatus> {
+    const failure = (outcome: 'failed' | 'unreachable', detail: string): WorkspaceStatus => ({
+      state: outcome,
+      outcome,
+      safety: null,
+      report: null,
+      detail
+    })
+    try {
+      const script = this.script(recipe, 'status')
+      if (recipe.status === null) {
+        const result = await this.runner.run('bash', [script], { env, cwd: this.recipes.harnessDir })
+        if (result.exitCode !== 0)
+          return failure(result.exitCode === 255 ? 'unreachable' : 'failed', 'legacy workspace report failed')
+        return {
+          state: 'reported',
+          outcome: 'unknown',
+          safety: null,
+          report: result.stdout,
+          detail: 'recipe declares no structured safety contract'
+        }
+      }
+      const contract = recipe.status
+      if (
+        contract.schema !== WORKSPACE_SCHEMA ||
+        Object.entries(SAFETY_EXITS).some(([key, code]) => contract.exit[key] !== code)
+      ) {
+        return failure('failed', 'unsupported workspace safety contract')
+      }
+      const result = await this.runner.run('bash', [script, '--json'], { env, cwd: this.recipes.harnessDir })
+      const document = parseDocument(result.stdout)
+      if (result.exitCode === 255 && document === null) return failure('unreachable', 'workspace host is unreachable')
+      if (!validSafety(document) || SAFETY_EXITS[document['outcome'] as SafetyOutcome] !== result.exitCode) {
+        return failure('failed', 'invalid workspace safety report or outcome/exit mismatch')
+      }
+      const outcome = document['outcome'] as SafetyOutcome
+      const workspace: WorkspaceStatus = {
+        state: REPORTING_OUTCOMES.includes(outcome) ? 'reported' : outcome === 'unreachable' ? 'unreachable' : 'failed',
+        outcome,
+        safety: { ...document },
+        report: null,
+        detail: null
+      }
+      if ('updates' in document) {
+        const updates = updatesOf(document['updates'])
+        if (updates !== undefined) workspace.updates = updates
+        else delete (workspace.safety as TomlTable)['updates']
+      }
+      if (text && workspace.state === 'reported') {
+        try {
+          const advisory = await this.runner.run('bash', [script, '--connect-timeout', '5'], {
+            env,
+            cwd: this.recipes.harnessDir
+          })
+          if ([0, 3, 4].includes(advisory.exitCode)) workspace.report = advisory.stdout
+          else workspace.detail = 'advisory text report unavailable'
+        } catch {
+          workspace.detail = 'advisory text report unavailable'
+        }
+      }
+      return workspace
+    } catch {
+      return failure('failed', 'workspace safety report unavailable; check the recipe status script')
+    }
+  }
+}
+
+function validSafety(document: TomlTable | null): document is TomlTable {
+  if (
+    document === null ||
+    document['schema'] !== WORKSPACE_SCHEMA ||
+    typeof document['outcome'] !== 'string' ||
+    !Object.hasOwn(SAFETY_EXITS, document['outcome']) ||
+    typeof document['generated_at'] !== 'string' ||
+    typeof document['workspace'] !== 'string' ||
+    typeof document['fetched'] !== 'boolean'
+  )
+    return false
+  const host = document['host']
+  if (!isTable(host) || typeof host['hostname'] !== 'string' || !nullable(isString)(host['id'])) return false
+  const repositories = document['repositories']
+  if (!Array.isArray(repositories) || !repositories.every(validRepository) || !isStrings(document['problems']))
+    return false
+  if (REPORTING_OUTCOMES.includes(document['outcome'])) {
+    const expected =
+      (document['problems'] as string[]).length > 0 ||
+      repositories.some((entry) => (entry as TomlTable)['state'] === 'unknown')
+        ? 'unknown'
+        : repositories.some((entry) => (entry as TomlTable)['state'] === 'at-risk')
+          ? 'at-risk'
+          : 'clean'
+    // An at-risk/unknown verdict may also reflect missing expected repositories;
+    // reject any claim safer than the evidence already present.
+    if (document['outcome'] === 'clean' && expected !== 'clean') return false
+    if (document['outcome'] === 'at-risk' && expected === 'unknown') return false
+  }
+  return true
+}
+
+function validRepository(value: unknown): boolean {
+  if (
+    !isTable(value) ||
+    !isString(value['path']) ||
+    !isString(value['branch']) ||
+    !['clean', 'at-risk', 'unknown'].includes(value['state'] as string) ||
+    !isCount(value['dirty']) ||
+    !isCount(value['unpushed']) ||
+    !isCount(value['stashes']) ||
+    !nullable(isString)(value['problem'])
+  )
+    return false
+  const upstream = value['upstream']
+  return upstream === null || (isTable(upstream) && isCount(upstream['ahead']) && isCount(upstream['behind']))
 }

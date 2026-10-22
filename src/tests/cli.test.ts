@@ -96,6 +96,8 @@ const MULTI = readFileSync(join(FIXTURES, 'multi.recipe.toml'), 'utf8')
 const SCRIPTS = [
   'operations/aws/agent-host/setup.sh',
   'operations/aws/agent-host/status.sh',
+  'operations/aws/agent-host/stop.sh',
+  'operations/aws/agent-host/destroy.sh',
   'multi/setup.sh',
   'multi/status.sh'
 ]
@@ -514,6 +516,8 @@ describe('techne CLI', () => {
       ['host', 'setup'],
       ['host', 'start'],
       ['host', 'stop'],
+      ['host', 'rebuild'],
+      ['host', 'withdraw'],
       ['host', 'teardown'],
       ['host', 'connect'],
       ['completion'],
@@ -576,8 +580,8 @@ describe('techne CLI', () => {
       ['recipe', ['list', 'show'], 'list or show'],
       [
         'host',
-        ['list', 'add', 'status', 'setup', 'start', 'stop', 'teardown', 'connect'],
-        'list, add, status, setup, start, stop, teardown or connect'
+        ['list', 'add', 'status', 'setup', 'start', 'stop', 'rebuild', 'withdraw', 'connect'],
+        'list, add, status, setup, start, stop, rebuild, withdraw or connect'
       ]
     ] as const) {
       const help = harness(new FakeRunner([]))
@@ -634,7 +638,7 @@ describe('techne CLI', () => {
         'source "$1"; complete -p techne;',
         complete('techne --aws-region local auth lo', 'login'),
         complete('techne help controller bo', 'bootstrap'),
-        complete('techne --aws-operator-profile p host te', 'teardown'),
+        complete('techne --aws-operator-profile p host re', 'rebuild'),
         complete('techne host stop --dr', '--dry-run'),
         complete('techne --harness-dir d host setup --pu', '--pull'),
         complete('techne recipe s', 'show'),
@@ -1219,7 +1223,7 @@ describe('host bindings and selection', () => {
     for (const [label, options, environment] of environments) {
       const setup = fixture(options)
       const names = Object.keys(options.bindings ?? { 'agent-host': '' }).join(', ')
-      for (const command of ['setup', 'start', 'stop', 'teardown']) {
+      for (const command of ['setup', 'start', 'stop', 'rebuild', 'withdraw']) {
         for (const dry of [[], ['--dry-run']]) {
           const runner = new FakeRunner([])
           const cli = harness(runner, { ...setup.environment, ...environment })
@@ -1401,7 +1405,12 @@ describe('host bindings and selection', () => {
   test('leaves a value absent when its default names an absent value', async () => {
     const recipe = AGENT_HOST.replace('default = "~/workspaces/kit"', 'default = "{aws.missing}"')
     const setup = fixture({ recipes: { 'agent-host': recipe } })
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    const runner = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(workspaceDocument()),
+      response(WORKSPACE_REPORT)
+    ])
     expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
     expect(runner.calls[2]?.env).not.toHaveProperty('KI_AGENT_HOST_WORKSPACE')
   })
@@ -1426,82 +1435,64 @@ describe('host bindings and selection', () => {
 describe('host commands', () => {
   test('reports the one selected host under the operator role through the recipe selectors', async () => {
     const setup = fixture()
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(workspaceDocument())])
     const cli = harness(runner, setup.environment)
-
     expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-    expect(JSON.parse(cli.output().stdout)).toEqual({
-      schema: 'techne/host-status/v2',
+    const report = JSON.parse(cli.output().stdout)
+    expect(report).toMatchObject({
+      schema: 'techne/host-status/v3',
       host: 'agent-host',
-      recipe: 'agent-host',
-      provider: 'aws',
-      exists: true,
-      instanceId: INSTANCE,
       state: 'running',
-      region: 'eu-west-1',
-      selector: 'ki-agent-host-id=agent-host, Name=ki-techne-agent-host',
-      workspace: { state: 'reported', report: WORKSPACE_REPORT, detail: null }
-    })
-    expect(runner.calls[0]).toEqual({
-      command: 'aws',
-      args: ['sts', 'get-caller-identity', '--profile', OPERATOR, '--output', 'json'],
-      mode: 'capture',
-      env: AWS_ENV
-    })
-    expect(runner.calls[1]).toEqual({ command: 'aws', args: DESCRIBE, mode: 'capture', env: AWS_ENV })
-    expect(runner.calls[2]).toEqual({
-      command: 'bash',
-      args: [join(setup.harness, 'operations/aws/agent-host/status.sh')],
-      mode: 'capture',
-      cwd: setup.harness,
-      env: {
-        AGENT_HOST_TAILSCALE_NAME: 'ki-techne-agent-host',
-        KI_AGENT_HOST_WORKSPACE: '~/workspaces/kit',
-        ...AWS_ENV
+      workspace: {
+        state: 'reported',
+        outcome: 'clean',
+        safety: JSON.parse(workspaceDocument()),
+        report: null,
+        detail: null,
+        updates: UPDATES
       }
     })
+    expect(runner.calls[0]?.args).toContain(OPERATOR)
+    expect(runner.calls[1]?.args).toEqual(DESCRIBE)
+    expect(runner.calls[2]).toEqual({
+      command: 'bash',
+      args: [join(setup.harness, 'operations/aws/agent-host/status.sh'), '--json'],
+      mode: 'capture',
+      cwd: setup.harness,
+      env: STATUS_ENV
+    })
+    expect(runner.calls).toHaveLength(3)
     expect(cli.output().stdout).not.toContain(ACCOUNT)
   })
-
   test('renders human host status for absent, running and failed workspaces', async () => {
     const setup = fixture()
     const absent = harness(new FakeRunner([operator(), hosts()]), setup.environment)
-    expect(await absent.run(['host', 'status'])).toBe(0)
-    expect(absent.output().stdout).toBe(
-      'host: agent-host (recipe agent-host, provider aws)\ninstance: absent\nstate: absent\nregion: eu-west-1\n' +
-        'selector: ki-agent-host-id=agent-host, Name=ki-techne-agent-host\nworkspace: skipped (host is absent)\n'
-    )
-
-    for (const report of ['summary: REPOSITORIES=0', WORKSPACE_REPORT]) {
-      const running = harness(new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(report)]), {
-        ...setup.environment
-      })
-      expect(await running.run(['host', 'status'])).toBe(0)
-      expect(running.output().stdout).toContain(
-        `workspace: reported by the recipe's status script\n${report.trimEnd()}\n`
-      )
+    expect(await absent.run(['host', 'status'])).toBe(4)
+    expect(absent.output().stdout).toContain('state: absent')
+    expect(absent.output().stdout).toContain('safety: unknown')
+    for (const report of ['', WORKSPACE_REPORT]) {
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(workspaceDocument()),
+        response(report)
+      ])
+      const cli = harness(runner, setup.environment)
+      expect(await cli.run(['host', 'status'])).toBe(0)
+      expect(cli.output().stdout).toContain(`workspace: reported by the recipe's status script\n${report}`)
     }
-
     const failing = harness(
-      new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', 'ssh: connect failed', 255)]),
+      new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', 'raw-secret', 1)]),
       setup.environment
     )
     expect(await failing.run(['host', 'status'])).toBe(1)
-    expect(failing.output().stdout).toContain('workspace: failed\n')
-    expect(failing.output().stderr).toBe(
-      'techne: error: workspace report failed: harness status script failed: ssh: connect failed\n'
-    )
-
+    expect(failing.output().stdout).toContain('workspace: failed')
+    expect(failing.output().stderr).not.toContain('raw-secret')
     const scriptless = fixture({ scripts: [] })
     const missing = harness(new FakeRunner([operator(), hosts([INSTANCE, 'running'])]), scriptless.environment)
     expect(await missing.run(['host', 'status', '--json'])).toBe(1)
-    expect(JSON.parse(missing.output().stdout).workspace).toEqual({
-      state: 'failed',
-      report: null,
-      detail: `${scriptless.harness} has no operations/aws/agent-host/status.sh; update the ki-techne-harness checkout`
-    })
+    expect(JSON.parse(missing.output().stdout).workspace.safety).toBeNull()
   })
-
   test('reports every binding with --all and exits 1 when any fails', async () => {
     const log: string[] = []
     const setup = fixture({
@@ -1515,7 +1506,7 @@ describe('host commands', () => {
     const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], [...PROVIDERS, stubProvider(log)])
     expect(await cli.run(['host', 'status', '--all', '--json'])).toBe(1)
     const report = JSON.parse(cli.output().stdout)
-    expect(report.schema).toBe('techne/host-status-list/v1')
+    expect(report.schema).toBe('techne/host-status-list/v2')
     expect(report.hosts).toEqual([
       expect.objectContaining({ host: 'agent-host', state: 'stopped', provider: 'aws' }),
       {
@@ -1528,7 +1519,13 @@ describe('host commands', () => {
         host: 'zoned',
         provider: 'stub',
         zone: 'z1',
-        workspace: { state: 'reported', report: 'stub report', detail: null }
+        workspace: {
+          state: 'reported',
+          report: 'stub report',
+          safety: null,
+          outcome: 'unknown',
+          detail: 'recipe declares no structured safety contract'
+        }
       })
     ])
     expect(runner.calls[2]?.env).toEqual({ MULTI_HOST: 'multi-zoned', STUB_ZONE: 'z1', STUB_TOKEN_FREE: 'yes' })
@@ -1547,7 +1544,7 @@ describe('host commands', () => {
     expect(human.output().stdout).toContain('\n\nhost: zoned (recipe multi, provider stub)\n')
 
     const healthy = harness(new FakeRunner([operator(), hosts()]), fixture().environment)
-    expect(await healthy.run(['host', 'status', '--all'])).toBe(0)
+    expect(await healthy.run(['host', 'status', '--all'])).toBe(4)
 
     const failing = harness(
       new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', 'down', 1)]),
@@ -1566,7 +1563,8 @@ describe('host commands', () => {
       [...PROVIDERS, stubProvider([], 'error')]
     )
     expect(await unexpected.run(['host', 'status', '--all'])).toBe(1)
-    expect(unexpected.output().stderr).toBe('techne: error: Error: stub exploded\n')
+    expect(unexpected.output().stdout).toContain('error: host report unavailable')
+    expect(unexpected.output().stdout + unexpected.output().stderr).not.toContain('stub exploded')
   })
 
   test('refuses --all with --host or any provider option', async () => {
@@ -1599,7 +1597,7 @@ describe('host commands', () => {
         '--aws-operator-profile',
         'flag-operator'
       ])
-    ).toBe(0)
+    ).toBe(4)
     for (const call of flagged.calls) {
       expect(call.env).toEqual({ AWS_PROFILE: 'flag-admin', AWS_REGION: 'flag-region' })
       expect(call.args).toContain('flag-operator')
@@ -1613,7 +1611,7 @@ describe('host commands', () => {
       AWS_PROFILE: 'environment-admin',
       AWS_REGION: 'environment-region'
     })
-    expect(await ambientCli.run(['host', 'status'])).toBe(0)
+    expect(await ambientCli.run(['host', 'status'])).toBe(4)
     expect(ambient.calls[1]?.env).toEqual({ AWS_PROFILE: 'environment-admin', AWS_REGION: 'environment-region' })
 
     const setup = fixture({ bindings: { 'agent-host': binding('agent-host', '[aws]\n') } })
@@ -1793,7 +1791,7 @@ describe('host commands', () => {
       const runner = new FakeRunner([identityResponse])
       const cli = harness(runner, fixture().environment)
 
-      for (const command of ['status', 'start', 'stop', 'teardown']) {
+      for (const command of ['status', 'start', 'stop']) {
         expect(await cli.run(['host', command, '--host', 'agent-host'])).toBe(1)
       }
       expect(cli.output().stderr).toMatch(/refusing (credentials|AWS account)/)
@@ -1814,31 +1812,27 @@ describe('host commands', () => {
 
     const nameless = fixture({ recipes: { 'agent-host': AGENT_HOST.replace('name_tag = "{host_name}"\n', '') } })
     const unnamed = new FakeRunner([operator(), hosts()])
-    expect(await harness(unnamed, nameless.environment).run(['host', 'status'])).toBe(0)
+    expect(await harness(unnamed, nameless.environment).run(['host', 'status'])).toBe(4)
     expect(unnamed.calls[1]?.args).not.toContain('Name=tag:Name,Values=ki-techne-agent-host')
   })
 
   test('derives the selectors and footprint of a second binding from its own name', async () => {
-    const setup = fixture({ bindings: { 'agent-host': binding('agent-host'), lab: binding('lab') } })
-    const runner = new FakeRunner([operator('ki-techne-lab-operator'), hosts([INSTANCE, 'stopped'])])
-    const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, [INSTANCE])
-    expect(await cli.run(['host', 'teardown', '--host', 'lab'])).toBe(0)
-    expect(runner.calls[1]?.args.slice(3, 5)).toEqual([
-      'Name=tag:ki-agent-host-id,Values=lab',
-      'Name=tag:Name,Values=ki-techne-lab'
+    const setup = fixture({ bindings: { lab: binding('lab') } })
+    const runner = new FakeRunner([
+      operator('ki-techne-lab-operator'),
+      hosts([INSTANCE, 'running']),
+      response(workspaceDocument()),
+      response(WORKSPACE_REPORT)
     ])
-    expect(cli.output().stdout).toContain(
-      'teardown still needs, from recipe agent-host:\n' +
-        '  - CloudFormation stack ki-techne-lab\n' +
-        '  - SSM parameters /ki/techne/lab/\n' +
-        '  - IAM operator role ki-techne-lab-operator\n' +
-        `  - AWS operator profile ${OPERATOR}\n` +
-        '  - tailnet device ki-techne-lab\n' +
-        '  - tailnet tag tag:ki-techne-lab\n' +
-        '  - SSH entry ki-techne-lab\n'
-    )
+    const cli = harness(runner, setup.environment)
+    expect(await cli.run(['host', 'status', '--host', 'lab'])).toBe(0)
+    expect(runner.calls[1]?.args).toContain('Name=tag:ki-agent-host-id,Values=lab')
+    const dryRunner = new FakeRunner([])
+    const dry = harness(dryRunner, setup.environment)
+    expect(await dry.run(['host', 'rebuild', '--host', 'lab', '--dry-run'])).toBe(0)
+    expect(dry.output().stdout).toContain('tailnet device ki-techne-lab')
+    expect(dryRunner.calls).toHaveLength(0)
   })
-
   test('refuses several matching instances and a missing host', async () => {
     const several = new FakeRunner([operator(), hosts([INSTANCE, 'running'], ['i-0fedcba9876543210', 'stopped'])])
     const cli = harness(several, fixture().environment)
@@ -1899,95 +1893,70 @@ describe('host commands', () => {
 
   test('stops only a running host', async () => {
     const setup = fixture()
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
-    const cli = harness(runner, setup.environment)
-    expect(await cli.run(['host', 'stop', '--host', 'agent-host'])).toBe(0)
-    expect(ec2Operations(runner)).toEqual(['describe-instances', 'stop-instances'])
-    expect(cli.output().stdout).toContain(`stopping ${INSTANCE}`)
-
+    for (const now of [[], ['--now']]) {
+      const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response()])
+      const cli = harness(runner, setup.environment)
+      expect(await cli.run(['host', 'stop', '--host', 'agent-host', ...now])).toBe(0)
+      expect(ec2Operations(runner)).toEqual(['describe-instances'])
+      expect(runner.calls[2]).toMatchObject({
+        command: 'bash',
+        args: [join(setup.harness, 'operations/aws/agent-host/stop.sh'), ...now],
+        mode: 'interactive',
+        cwd: setup.harness,
+        env: { AWS_PROFILE: OPERATOR, AWS_REGION: 'eu-west-1', EXPECTED_AWS_ACCOUNT: ACCOUNT }
+      })
+      expect(runner.calls).toHaveLength(3)
+    }
     for (const state of ['stopped', 'stopping']) {
-      const idle = new FakeRunner([operator(), hosts([INSTANCE, state])])
-      const idleCli = harness(idle, setup.environment)
-      expect(await idleCli.run(['host', 'stop', '--host', 'agent-host'])).toBe(0)
-      expect(idleCli.output().stdout).toContain(`already ${state}; nothing to do`)
-      expect(ec2Operations(idle)).toEqual(['describe-instances'])
+      const runner = new FakeRunner([operator(), hosts([INSTANCE, state])])
+      expect(await harness(runner, setup.environment).run(['host', 'stop', '--host', 'agent-host'])).toBe(0)
+      expect(runner.calls).toHaveLength(2)
     }
-
-    const dry = new FakeRunner([operator(), hosts([INSTANCE, 'pending'])])
-    const dryCli = harness(dry, setup.environment)
-    expect(await dryCli.run(['host', 'stop', '--host', 'agent-host', '--dry-run'])).toBe(0)
-    expect(dryCli.output().stdout).toContain(`dry run: would stop ${INSTANCE}`)
-    expect(ec2Operations(dry)).toEqual(['describe-instances'])
-
-    const failing = harness(new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', '', 1)]), {
-      ...setup.environment
-    })
-    expect(await failing.run(['host', 'stop', '--host', 'agent-host'])).toBe(1)
-    expect(failing.output().stderr).toBe('techne: error: agent host stop failed\n')
-  })
-
-  test('terminates the host only after the exact instance ID is typed and reports the footprint', async () => {
-    const setup = fixture()
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
-    const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, [` ${INSTANCE} `])
-    expect(await cli.run(['host', 'teardown', '--host', 'agent-host'])).toBe(0)
-    expect(cli.prompts).toEqual(['type the instance ID to confirm: '])
-    expect(ec2Operations(runner)).toEqual(['describe-instances', 'terminate-instances'])
-    expect(cli.output().stdout).toContain('this cannot be undone')
-    expect(cli.output().stdout).toContain('  - CloudFormation stack ki-techne-agent-host\n')
-    expect(cli.output().stdout).toContain('  - tailnet device ki-techne-agent-host\n')
-
-    for (const answer of ['i-0fedcba9876543210', null]) {
-      const refused = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
-      const refusedCli = harness(refused, setup.environment, LOCAL_RUNTIME, true, [answer])
-      expect(await refusedCli.run(['host', 'teardown', '--host', 'agent-host'])).toBe(1)
-      expect(refusedCli.output().stderr).toContain('confirmation did not match; nothing done')
-      expect(ec2Operations(refused)).toEqual(['describe-instances'])
-    }
-
-    const failing = harness(
-      new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', 'denied', 1)]),
-      setup.environment,
-      LOCAL_RUNTIME,
-      true,
-      [INSTANCE]
-    )
-    expect(await failing.run(['host', 'teardown', '--host', 'agent-host'])).toBe(1)
-    expect(failing.output().stderr).toContain('agent host teardown failed: denied')
-
-    const bare = fixture({
-      recipes: {
-        x: 'schema = "techne/recipe/v1"\nname = "x"\nsummary = "s"\nruntime = "r"\n[providers.aws.selectors]\ntag_key = "k"\ntag_value = "{name}"\noperator_role = "r"\n'
-      },
-      bindings: { a: binding('a', AWS_TABLE, 'x') }
-    })
-    const empty = harness(
-      new FakeRunner([operator('r'), hosts([INSTANCE, 'stopped'])]),
-      bare.environment,
-      LOCAL_RUNTIME,
-      true,
-      [INSTANCE]
-    )
-    expect(await empty.run(['host', 'teardown', '--host', 'a'])).toBe(0)
-    expect(empty.output().stdout).toContain('recipe x lists no remaining footprint\n')
-  })
-
-  test('refuses teardown outside an interactive terminal but allows a dry run', async () => {
-    const setup = fixture()
-    const runner = new FakeRunner([])
-    const cli = harness(runner, setup.environment, LOCAL_RUNTIME, false)
-    expect(await cli.run(['host', 'teardown', '--host', 'agent-host'])).toBe(2)
-    expect(cli.output().stderr).toContain('host teardown requires an interactive terminal')
-    expect(runner.calls).toHaveLength(0)
-
     const dry = new FakeRunner([operator(), hosts([INSTANCE, 'running'])])
-    const dryCli = harness(dry, setup.environment, LOCAL_RUNTIME, false)
-    expect(await dryCli.run(['host', 'teardown', '--host', 'agent-host', '--dry-run'])).toBe(0)
-    expect(dryCli.output().stdout).toContain(`dry run: would terminate ${INSTANCE}`)
-    expect(dryCli.prompts).toEqual([])
-    expect(ec2Operations(dry)).toEqual(['describe-instances'])
+    expect(await harness(dry, setup.environment).run(['host', 'stop', '--host', 'agent-host', '--dry-run'])).toBe(0)
+    expect(dry.calls).toHaveLength(2)
+    const failed = harness(
+      new FakeRunner([operator(), hosts([INSTANCE, 'running']), response('', 'raw-secret', 1)]),
+      setup.environment
+    )
+    expect(await failed.run(['host', 'stop', '--host', 'agent-host'])).toBe(1)
+    expect(failed.output().stderr).toBe('techne: error: harness stop failed with exit status 1\n')
+    const noScript = new FakeRunner([])
+    expect(
+      await harness(
+        noScript,
+        fixture({ recipes: { 'agent-host': AGENT_HOST.replace('stop = "operations/aws/agent-host/stop.sh"', '') } })
+          .environment
+      ).run(['host', 'stop', '--host', 'agent-host'])
+    ).toBe(1)
+    expect(noScript.calls).toHaveLength(0)
   })
-
+  test('keeps teardown as a compatibility diagnostic with zero effects', async () => {
+    for (const args of [[], ['--dry-run'], ['--host', 'agent-host'], ['--host', 'agent-host', '--dry-run']]) {
+      const runner = new FakeRunner([])
+      const cli = harness(runner, {})
+      expect(await cli.run(['host', 'teardown', ...args])).toBe(2)
+      expect(cli.output().stderr).toContain('use host rebuild or host withdraw')
+      expect(runner.calls).toHaveLength(0)
+    }
+  })
+  test('refuses guarded removal outside an interactive terminal but allows a dry run', async () => {
+    const setup = fixture()
+    for (const operation of ['rebuild', 'withdraw']) {
+      const runner = new FakeRunner([])
+      const cli = harness(runner, setup.environment, LOCAL_RUNTIME, false)
+      expect(await cli.run(['host', operation, '--host', 'agent-host'])).toBe(2)
+      expect(cli.output().stderr).toContain('requires an interactive terminal')
+      expect(runner.calls).toHaveLength(0)
+      const dry = harness(runner, setup.environment, LOCAL_RUNTIME, false)
+      expect(await dry.run(['host', operation, '--host', 'agent-host', '--dry-run'])).toBe(0)
+      expect(dry.output().stdout).toContain('Remaining footprint')
+      expect(dry.output().stdout).toContain(
+        operation === 'rebuild' ? 'retain credentials' : 'remove stored credentials'
+      )
+      expect(runner.calls).toHaveLength(0)
+    }
+  })
   test('connects the selected host through Tailscale and Zed without calling AWS', async () => {
     const setup = fixture({ bindings: { 'agent-host': binding('agent-host'), lab: binding('lab') } })
     const runner = new FakeRunner([response(), response(), response()])
@@ -2056,7 +2025,7 @@ describe('host commands', () => {
     const cases: [string[], string][] = [
       [
         ['host', 'status', '--dry-run'],
-        '--dry-run is only supported for host setup, start, stop, teardown and connect'
+        '--dry-run is only supported for host setup, start, stop, rebuild, withdraw and connect'
       ],
       [['controller', 'status', '--dry-run'], '--dry-run is only supported'],
       [['diag', '--dry-run'], '--dry-run is only supported'],
@@ -2075,7 +2044,7 @@ describe('host commands', () => {
       expect(await cli.run(args), args.join(' ')).toBe(2)
       expect(cli.output().stderr).toContain(message)
     }
-    for (const command of ['setup', 'start', 'stop', 'teardown', 'connect']) {
+    for (const command of ['setup', 'start', 'stop', 'rebuild', 'withdraw', 'connect']) {
       expect(await cli.run(['host', command, '--host', 'agent-host', '--json'])).toBe(2)
       expect(cli.output().stderr).toContain(`--json is not supported for host ${command}`)
     }
@@ -2085,6 +2054,23 @@ describe('host commands', () => {
   })
 
   test('reports unexpected runner failures', async () => {
+    const provider: Provider = {
+      ...stubProvider([]),
+      controller: () => {
+        throw new Error('provider initialization failed')
+      }
+    }
+    const diagnostic = harness(
+      new FakeRunner([]),
+      fixture({ config: '[controller.stub]\nendpoint = "test"\n' }).environment,
+      LOCAL_RUNTIME,
+      true,
+      [],
+      [provider]
+    )
+    expect(await diagnostic.run(['doctor'])).toBe(1)
+    expect(diagnostic.output().stderr).toContain('provider initialization failed')
+
     const errorCli = harness(new ThrowingRunner(new Error('boom')), fixture().environment)
     expect(await errorCli.run(['doctor'])).toBe(1)
     expect(errorCli.output().stderr).toBe('')
@@ -2099,7 +2085,6 @@ describe('host commands', () => {
   })
 })
 
-const STATUS_SCRIPT = 'operations/aws/agent-host/status.sh'
 const STATUS_ENV = {
   AGENT_HOST_TAILSCALE_NAME: 'ki-techne-agent-host',
   KI_AGENT_HOST_WORKSPACE: '~/workspaces/kit',
@@ -2129,11 +2114,12 @@ function workspaceDocument(outcome = 'clean', members: Record<string, unknown> =
   return JSON.stringify({
     schema: 'techne/host-workspace/v1',
     generated_at: '2026-10-12T04:30:00Z',
-    host: 'ki-techne-agent-host',
+    host: { hostname: 'ki-techne-agent-host', id: INSTANCE },
     workspace: '~/workspaces/kit',
     fetched: false,
     outcome,
     repositories: [],
+    problems: [],
     ...members
   })
 }
@@ -2155,7 +2141,12 @@ describe('host patching fields', () => {
   test('accepts absent fields, boundary windows and boolean Livepatch without passing them to setup or status', async () => {
     for (const fields of ['', 'reboot_window = "00:00"', 'reboot_window = "23:59"\nlivepatch = true']) {
       const setup = fixture({ bindings: { 'agent-host': patched(fields) } })
-      const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(workspaceDocument()),
+        response(WORKSPACE_REPORT)
+      ])
       expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
       expect(runner.calls[2]?.env).toEqual(STATUS_ENV)
     }
@@ -2176,7 +2167,12 @@ describe('host patching fields', () => {
       recipes: { 'agent-host': recipe },
       bindings: { 'agent-host': patched('reboot_window = "04:00"\nlivepatch = false') }
     })
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    const runner = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(workspaceDocument()),
+      response(WORKSPACE_REPORT)
+    ])
     expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
     expect(runner.calls[2]?.env).toEqual({
       ...STATUS_ENV,
@@ -2231,7 +2227,12 @@ describe('host patching fields', () => {
       'AGENT_HOST_LIVEPATCH"\nscripts = ["provision"]',
       'AGENT_HOST_LIVEPATCH"\nscripts = ["status"]'
     )
-    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+    const runner = new FakeRunner([
+      operator(),
+      hosts([INSTANCE, 'running']),
+      response(workspaceDocument()),
+      response(WORKSPACE_REPORT)
+    ])
     expect(
       await harness(runner, fixture({ recipes: { 'agent-host': recipe } }).environment).run(['host', 'status'])
     ).toBe(0)
@@ -2271,7 +2272,12 @@ describe('host Tailscale OAuth field', () => {
     ]) {
       for (const recipe of [AGENT_HOST, oauthRecipe('"provision", "destroy"')]) {
         const setup = fixture({ recipes: { 'agent-host': recipe }, bindings: { 'agent-host': patched(fields) } })
-        const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+        const runner = new FakeRunner([
+          operator(),
+          hosts([INSTANCE, 'running']),
+          response(workspaceDocument()),
+          response(WORKSPACE_REPORT)
+        ])
         expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
         expect(runner.calls[2]?.env).toEqual(STATUS_ENV)
       }
@@ -2295,7 +2301,12 @@ describe('host Tailscale OAuth field', () => {
         recipes: { 'agent-host': oauthRecipe('"status", "destroy"') },
         bindings: { 'agent-host': patched(fields) }
       })
-      const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
+      const runner = new FakeRunner([
+        operator(),
+        hosts([INSTANCE, 'running']),
+        response(workspaceDocument()),
+        response(WORKSPACE_REPORT)
+      ])
       expect(await harness(runner, setup.environment).run(['host', 'status'])).toBe(0)
       expect(runner.calls[2]?.env).toEqual(expected)
     }
@@ -2342,222 +2353,393 @@ describe('host Tailscale OAuth field', () => {
   })
 })
 
-describe('host status updates', () => {
-  test('projects the updates member into JSON status from one supplemental read', async () => {
-    const setup = fixture()
-    const document = workspaceDocument('clean', { updates: { ...UPDATES, kernel: 'raw-additive' }, banner: 'x' })
-    const runner = new FakeRunner([
-      operator(),
-      hosts([INSTANCE, 'running']),
-      response(WORKSPACE_REPORT),
-      response(document)
-    ])
-    const cli = harness(runner, setup.environment)
-    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-    expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-      state: 'reported',
-      report: WORKSPACE_REPORT,
-      detail: null,
-      updates: UPDATES
-    })
-    expect(cli.output().stdout).not.toContain('raw-additive')
-    expect(runner.calls).toHaveLength(4)
-    expect(runner.calls[3]).toEqual({
-      command: 'bash',
-      args: [join(setup.harness, STATUS_SCRIPT), '--json'],
-      mode: 'capture',
-      cwd: setup.harness,
-      env: STATUS_ENV
-    })
-  })
+describe('guarded host safety', () => {
+  const status = async (document: CommandResult, text?: CommandResult, options: FixtureOptions = {}) => {
+    const runner = new FakeRunner([operator(), hosts([INSTANCE, 'running']), document, ...(text ? [text] : [])])
+    const cli = harness(runner, fixture(options).environment)
+    const code = await cli.run(['host', 'status', ...(text ? [] : ['--json'])])
+    return { code, runner, ...cli.output() }
+  }
 
-  test('keeps at-risk and unknown documents advisory, explicit null as null and an omitted member omitted', async () => {
-    const cases: [CommandResult, unknown][] = [
-      [response(workspaceDocument('at-risk'), '', 3), UPDATES],
-      [response(workspaceDocument('unknown', { updates: UNKNOWN_UPDATES }), '', 4), UNKNOWN_UPDATES],
-      [response(workspaceDocument('clean', { updates: null })), null]
-    ]
-    for (const [supplemental, updates] of cases) {
-      const runner = new FakeRunner([
-        operator(),
-        hosts([INSTANCE, 'running']),
-        response(WORKSPACE_REPORT),
-        supplemental
-      ])
-      const cli = harness(runner, fixture().environment)
-      expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-        state: 'reported',
-        report: WORKSPACE_REPORT,
-        detail: null,
-        updates
-      })
+  test('uses one authoritative report, preserving additive data and advisory updates', async () => {
+    for (const [outcome, code] of [
+      ['clean', 0],
+      ['at-risk', 3],
+      ['unknown', 4],
+      ['failed', 1],
+      ['unreachable', 255]
+    ] as const) {
+      const result = await status(
+        response(
+          workspaceDocument(outcome, { updates: UPDATES, profile: { revision: 'abc' }, extra: ['signal'] }),
+          '',
+          code
+        )
+      )
+      expect(result.code).toBe(code)
+      const workspace = JSON.parse(result.stdout).workspace
+      expect(workspace.outcome).toBe(outcome)
+      expect(workspace.report).toBeNull()
+      if (outcome !== 'unreachable') {
+        expect(workspace.safety.extra).toEqual(['signal'])
+        expect(workspace.safety.profile).toEqual({ revision: 'abc' })
+        expect(workspace.updates).toEqual(UPDATES)
+      }
+      expect(result.runner.calls).toHaveLength(3)
+      expect(result.runner.calls[2]?.args.at(-1)).toBe('--json')
+      expect(result.runner.calls.flatMap((call) => call.args)).not.toContain('--fetch')
     }
-    const omitted = new FakeRunner([
-      operator(),
-      hosts([INSTANCE, 'running']),
-      response(WORKSPACE_REPORT),
-      response(workspaceDocument('clean', {}))
-    ])
-    const cli = harness(omitted, fixture().environment)
-    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-    expect(JSON.parse(cli.output().stdout).workspace).not.toHaveProperty('updates')
+    for (const [members, expected] of [
+      [{ updates: null }, null],
+      [{ updates: UNKNOWN_UPDATES }, UNKNOWN_UPDATES],
+      [{}, undefined]
+    ] as const) {
+      const result = await status(response(workspaceDocument('clean', members)))
+      expect(result.code).toBe(0)
+      expect(JSON.parse(result.stdout).workspace.updates).toEqual(expected)
+    }
   })
 
-  test('leaves updates unavailable for any invalid supplemental read without changing the report', async () => {
-    const malformed = (field: string, value: unknown) =>
-      workspaceDocument('clean', { updates: { ...UPDATES, [field]: value } })
-    const { ['os' as keyof typeof UPDATES]: _os, ...missing } = UPDATES
-    const supplementals: CommandResult[] = [
-      response('raw-supplemental-secret'),
-      response('[1]'),
-      response(''),
-      response(workspaceDocument().replace('host-workspace/v1', 'host-workspace/v2')),
+  test('drops malformed updates without changing safety or revealing their raw value', async () => {
+    const missing = { ...UPDATES } as Record<string, unknown>
+    delete missing['os']
+    const invalid: unknown[] = [
+      'raw-secret',
+      missing,
+      { ...UPDATES, os: 1 },
+      { ...UPDATES, pending: -1 },
+      { ...UPDATES, pending: 1.5 },
+      { ...UPDATES, security: 'x' },
+      { ...UPDATES, reboot_required: 1 },
+      { ...UPDATES, reboot_packages: [1] },
+      { ...UPDATES, reboot_required_since: false },
+      { ...UPDATES, livepatch: [] }
+    ]
+    for (const updates of invalid) {
+      const result = await status(response(workspaceDocument('clean', { updates })))
+      expect(result.code).toBe(0)
+      expect(JSON.parse(result.stdout).workspace).not.toHaveProperty('updates')
+      expect(JSON.parse(result.stdout).workspace.safety).not.toHaveProperty('updates')
+      expect(result.stdout + result.stderr).not.toContain('raw-secret')
+    }
+  })
+
+  test('fails closed on malformed or contradictory safety evidence without raw output', async () => {
+    const bad = [
+      response('raw-secret'),
+      response('[]'),
+      response('null'),
       response(workspaceDocument('clean'), '', 3),
-      response(workspaceDocument('at-risk'), '', 0),
-      response(workspaceDocument('failed'), '', 1),
-      response(workspaceDocument('unreachable'), '', 255),
-      response('', 'ssh: raw-supplemental-secret', 255),
-      response(JSON.stringify({ ...JSON.parse(workspaceDocument()), outcome: 3 })),
-      response(workspaceDocument('clean', { updates: 'raw-supplemental-secret' })),
-      response(workspaceDocument('clean', { updates: missing })),
-      response(malformed('pending', -1)),
-      response(malformed('pending', 1.5)),
-      response(malformed('pending', '7')),
-      response(malformed('security', true)),
-      response(malformed('reboot_required', 'yes')),
-      response(malformed('reboot_required_since', 0)),
-      response(malformed('reboot_packages', 'libc6')),
-      response(malformed('reboot_packages', [1])),
-      response(malformed('os', 1)),
-      response(malformed('livepatch', false))
+      response(workspaceDocument('at-risk')),
+      response(workspaceDocument('surprise')),
+      response(workspaceDocument('clean', { schema: 'other' })),
+      response(workspaceDocument('clean', { outcome: 3 })),
+      response(workspaceDocument('clean', { generated_at: null })),
+      response(workspaceDocument('clean', { workspace: [] })),
+      response(workspaceDocument('clean', { fetched: 'yes' })),
+      response(workspaceDocument('clean', { host: 'host' })),
+      response(workspaceDocument('clean', { host: { hostname: 1, id: null } })),
+      response(workspaceDocument('clean', { host: { hostname: 'host', id: false } })),
+      response(workspaceDocument('clean', { repositories: {} })),
+      response(workspaceDocument('clean', { repositories: [null] })),
+      response(workspaceDocument('clean', { problems: [1] })),
+      response('', 'raw-secret', 1)
     ]
-    for (const supplemental of supplementals) {
-      const runner = new FakeRunner([
-        operator(),
-        hosts([INSTANCE, 'running']),
-        response(WORKSPACE_REPORT),
-        supplemental
-      ])
-      const cli = harness(runner, fixture().environment)
-      expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-        state: 'reported',
-        report: WORKSPACE_REPORT,
-        detail: null
-      })
-      expect(cli.output().stdout).not.toContain('raw-supplemental-secret')
-      expect(cli.output().stderr).toBe('')
-      expect(runner.calls).toHaveLength(4)
+    const repository = {
+      path: '/workspace/repo',
+      state: 'clean',
+      branch: 'main',
+      dirty: 0,
+      unpushed: 0,
+      stashes: 0,
+      upstream: { ahead: 0, behind: 0 },
+      problem: null
     }
-
-    const rejecting = new RejectingRunner([operator(), hosts([INSTANCE, 'running']), response(WORKSPACE_REPORT)])
-    const cli = harness(rejecting, fixture().environment)
-    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-    expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-      state: 'reported',
-      report: WORKSPACE_REPORT,
-      detail: null
-    })
-    expect(cli.output().stdout + cli.output().stderr).not.toContain('raw-supplemental-secret')
+    for (const [key, value] of Object.entries({
+      path: 1,
+      state: 'other',
+      branch: 1,
+      dirty: -1,
+      unpushed: false,
+      stashes: 'x',
+      upstream: { ahead: 0, behind: 'x' },
+      problem: []
+    })) {
+      bad.push(response(workspaceDocument('clean', { repositories: [{ ...repository, [key]: value }] })))
+    }
+    for (const document of bad) {
+      const result = await status(document)
+      expect(result.code).toBe(1)
+      expect(JSON.parse(result.stdout).workspace).toMatchObject({ state: 'failed', outcome: 'failed', safety: null })
+      expect(result.stdout + result.stderr).not.toContain('raw-secret')
+    }
+    for (const upstream of [null, repository.upstream]) {
+      expect(
+        (
+          await status(
+            response(
+              workspaceDocument('clean', {
+                host: { hostname: 'host', id: null },
+                repositories: [{ ...repository, upstream }]
+              })
+            )
+          )
+        ).code
+      ).toBe(0)
+    }
   })
 
-  test('keeps the primary text read authoritative for state and exit', async () => {
-    for (const exitCode of [1, 3, 4, 255]) {
-      const runner = new FakeRunner([
-        operator(),
-        hosts([INSTANCE, 'running']),
-        response(WORKSPACE_REPORT, 'status failed', exitCode),
-        response(workspaceDocument('at-risk'), '', 3)
-      ])
-      const cli = harness(runner, fixture().environment)
-      expect(await cli.run(['host', 'status', '--json'])).toBe(1)
-      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-        state: 'failed',
-        report: null,
-        detail: 'harness status script failed: status failed'
-      })
-      expect(runner.calls).toHaveLength(3)
+  test('refuses a verdict safer than its repository or inventory evidence', async () => {
+    const repo = { path: 'repo', branch: 'main', dirty: 1, unpushed: 0, stashes: 0, upstream: null, problem: null }
+    for (const [outcome, state, problems, code] of [
+      ['clean', 'at-risk', [], 1],
+      ['clean', 'unknown', [], 1],
+      ['clean', 'clean', ['missing repository'], 1],
+      ['at-risk', 'unknown', [], 1],
+      ['at-risk', 'at-risk', [], 3],
+      ['unknown', 'unknown', [], 4]
+    ] as const) {
+      const result = await status(
+        response(
+          workspaceDocument(outcome, { repositories: [{ ...repo, state }], problems }),
+          '',
+          outcome === 'clean' ? 0 : outcome === 'at-risk' ? 3 : 4
+        )
+      )
+      expect(result.code).toBe(code)
     }
-
-    const stopped = new FakeRunner([operator(), hosts([INSTANCE, 'stopped'])])
-    const cli = harness(stopped, fixture().environment)
-    expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-    expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-      state: 'skipped',
-      report: null,
-      detail: 'host is stopped'
-    })
-    expect(stopped.calls).toHaveLength(2)
+    const unreachable = await status(response('', 'raw-secret', 255))
+    expect(unreachable.code).toBe(255)
+    expect(unreachable.stdout + unreachable.stderr).not.toContain('raw-secret')
   })
 
-  test('renders the Updates section once from the text report, with no second read', async () => {
-    const report = `${WORKSPACE_REPORT}Updates\n  Pending updates          unknown\n  Livepatch                unknown\n`
-    const runner = new FakeRunner([
-      operator(),
-      hosts([INSTANCE, 'running']),
-      response(report),
-      response(workspaceDocument())
-    ])
+  test('keeps supplied text advisory, including expiry and pin warnings', async () => {
+    for (const [outcome, code] of [
+      ['clean', 0],
+      ['at-risk', 3],
+      ['unknown', 4]
+    ] as const) {
+      const text = 'Expires in 14 days EXPIRES SOON\nOverdue -2 days\nExpiry unknown\nPins DRIFT\n'
+      const result = await status(response(workspaceDocument(outcome), '', code), response(text, '', code))
+      expect(result.code).toBe(code)
+      expect(result.stdout).toContain(text)
+      expect(result.runner.calls[3]?.args.slice(-2)).toEqual(['--connect-timeout', '5'])
+      expect(result.runner.calls).toHaveLength(4)
+    }
+    const failed = await status(response(workspaceDocument('at-risk'), '', 3), response('raw-secret', 'raw-secret', 1))
+    expect(failed.code).toBe(3)
+    expect(failed.stderr).toContain('advisory text report unavailable')
+    expect(failed.stdout + failed.stderr).not.toContain('raw-secret')
+    const runner = new RejectingRunner([operator(), hosts([INSTANCE, 'running']), response(workspaceDocument())])
     const cli = harness(runner, fixture().environment)
     expect(await cli.run(['host', 'status'])).toBe(0)
-    expect(cli.output().stdout).toContain(`workspace: reported by the recipe's status script\n${report}`)
-    expect(cli.output().stdout.split('Updates').length).toBe(2)
-    expect(cli.output().stdout).not.toContain('reboot_required')
-    expect(runner.calls).toHaveLength(3)
+    expect(cli.output().stderr).toContain('advisory text report unavailable')
   })
 
-  test('keeps a recipe without a status declaration on the text-only route', async () => {
-    const recipe = AGENT_HOST.replace(/^\[status\][\s\S]*?unreachable = 255\n/m, '')
-    const other = AGENT_HOST.replace('schema = "techne/host-workspace/v1"', 'schema = "techne/host-workspace/v9"')
-    for (const legacy of [recipe, other]) {
-      const runner = new FakeRunner([
-        operator(),
-        hosts([INSTANCE, 'running']),
-        response(WORKSPACE_REPORT),
-        response(workspaceDocument())
-      ])
-      const cli = harness(runner, fixture({ recipes: { 'agent-host': legacy } }).environment)
-      expect(await cli.run(['host', 'status', '--json'])).toBe(0)
-      expect(JSON.parse(cli.output().stdout).workspace).toEqual({
-        state: 'reported',
-        report: WORKSPACE_REPORT,
-        detail: null
+  test('handles missing scripts/contracts, runner rejection and unavailable hosts conservatively', async () => {
+    const legacy = AGENT_HOST.replace(/^\[status\][\s\S]*?(?=^\[operations)/m, '')
+    const legacyResult = await status(response(WORKSPACE_REPORT), undefined, { recipes: { 'agent-host': legacy } })
+    expect(legacyResult.code).toBe(4)
+    expect(JSON.parse(legacyResult.stdout).workspace).toMatchObject({ safety: null, outcome: 'unknown' })
+    expect((await status(response('', 'raw-secret', 255), undefined, { recipes: { 'agent-host': legacy } })).code).toBe(
+      255
+    )
+    expect((await status(response('', 'raw-secret', 1), undefined, { recipes: { 'agent-host': legacy } })).code).toBe(1)
+    for (const recipe of [
+      AGENT_HOST.replace('host-workspace/v1', 'host-workspace/v9'),
+      AGENT_HOST.replace('at-risk = 3', 'at-risk = 7'),
+      AGENT_HOST.replace('status = "operations/aws/agent-host/status.sh"', '')
+    ]) {
+      const result = await status(response(), undefined, { recipes: { 'agent-host': recipe } })
+      expect(result.code).toBe(1)
+      expect(result.runner.calls).toHaveLength(2)
+    }
+    class RejectStatus extends FakeRunner {
+      override async run(command: string, args: readonly string[], options?: RunOptions): Promise<CommandResult> {
+        if (command === 'bash') throw new Error('raw-secret')
+        return super.run(command, args, options)
+      }
+    }
+    const cli = harness(new RejectStatus([operator(), hosts([INSTANCE, 'running'])]), fixture().environment)
+    expect(await cli.run(['host', 'status', '--json'])).toBe(1)
+    expect(cli.output().stdout + cli.output().stderr).not.toContain('raw-secret')
+    for (const instance of [hosts(), hosts([INSTANCE, 'stopped'])]) {
+      const runner = new FakeRunner([operator(), instance])
+      const stopped = harness(runner, fixture().environment)
+      expect(await stopped.run(['host', 'status', '--json'])).toBe(4)
+      expect(JSON.parse(stopped.output().stdout).workspace).toMatchObject({
+        state: 'skipped',
+        safety: null,
+        outcome: 'unknown'
       })
-      expect(runner.calls).toHaveLength(3)
+      expect(runner.calls).toHaveLength(2)
     }
   })
 
-  test('projects updates per host with --all and keeps going past a failure', async () => {
+  test('aggregates mixed hosts with failure, unreachable, unknown, risk, clean precedence', async () => {
+    for (const [left, right, expected] of [
+      ['clean', 'clean', 0],
+      ['clean', 'at-risk', 3],
+      ['at-risk', 'unknown', 4],
+      ['unknown', 'unreachable', 255],
+      ['unreachable', 'failed', 1]
+    ] as const) {
+      const fixtureOptions = { bindings: { a: binding('a'), b: binding('b') } }
+      const runner = new FakeRunner([
+        operator('ki-techne-a-operator'),
+        hosts([INSTANCE, 'running']),
+        response(
+          workspaceDocument(left),
+          '',
+          { clean: 0, 'at-risk': 3, unknown: 4, unreachable: 255, failed: 1 }[left]
+        ),
+        operator('ki-techne-b-operator'),
+        hosts([INSTANCE, 'running']),
+        response(
+          workspaceDocument(right),
+          '',
+          { clean: 0, 'at-risk': 3, unknown: 4, unreachable: 255, failed: 1 }[right]
+        )
+      ])
+      const cli = harness(runner, fixture(fixtureOptions).environment)
+      expect(await cli.run(['host', 'status', '--all', '--json'])).toBe(expected)
+      const report = JSON.parse(cli.output().stdout)
+      expect(report.schema).toBe('techne/host-status-list/v2')
+      expect(report.hosts).toHaveLength(2)
+      expect(runner.calls).toHaveLength(6)
+    }
+  })
+
+  test('continues after an unexpected provider rejection without leaking its raw failure', async () => {
     const setup = fixture({
       bindings: {
-        'agent-host': binding('agent-host'),
-        zoned: binding('zoned', '[stub]\nzone = "z1"\n', 'multi').replace('recipe =', 'workspace = "w"\nrecipe =')
+        a: binding('a', '[stub]\n', 'multi').replace('recipe =', 'workspace = "w"\nrecipe ='),
+        z: binding('z')
       }
     })
     const runner = new FakeRunner([
-      operator(),
+      operator('ki-techne-z-operator'),
       hosts([INSTANCE, 'running']),
-      response(WORKSPACE_REPORT),
-      response(workspaceDocument('at-risk'), '', 3),
-      response('', 'down', 1)
+      response(workspaceDocument())
     ])
-    const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], [...PROVIDERS, stubProvider([])])
+    const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], [...PROVIDERS, stubProvider([], 'error')])
     expect(await cli.run(['host', 'status', '--all', '--json'])).toBe(1)
     const report = JSON.parse(cli.output().stdout)
-    expect(report.schema).toBe('techne/host-status-list/v1')
-    expect(report.hosts[0].workspace).toEqual({
-      state: 'reported',
-      report: WORKSPACE_REPORT,
-      detail: null,
-      updates: UPDATES
+    expect(report.hosts[0]).toEqual({ host: 'a', error: 'host report unavailable' })
+    expect(report.hosts[1].workspace.outcome).toBe('clean')
+    expect(runner.calls).toHaveLength(3)
+    expect(cli.output().stdout + cli.output().stderr).not.toContain('stub exploded')
+  })
+
+  test('delegates each guarded removal and its exact overrides without provider termination', async () => {
+    const setup = fixture()
+    const scenarios = [
+      { label: 'clean success', args: [], exit: 0 },
+      { label: 'already removed idempotence', args: [], exit: 0 },
+      { label: 'exact-risk discard success', args: ['--discard', 'repo/a', 'repo/b'], exit: 0 },
+      { label: 'missing risk override', args: [], exit: 1 },
+      { label: 'partial risk set', args: ['--discard', 'repo/a'], exit: 1 },
+      { label: 'extra risk set', args: ['--discard', 'repo/a', 'repo/b', 'repo/c'], exit: 1 },
+      { label: 'unknown host refusal', args: [], exit: 4 },
+      { label: 'unreachable host refusal', args: [], exit: 255 },
+      { label: 'typed unreadable refusal', args: ['--discard-unreadable-host'], exit: 1 },
+      { label: 'typed unreadable success', args: ['--discard-unreadable-host'], exit: 0 },
+      { label: 'same-host mismatch', args: ['--discard-unreadable-host'], exit: 1 },
+      { label: 'missing operator confirmation variable', args: [], exit: 1 },
+      { label: 'script failure', args: [], exit: 1 }
+    ]
+    // These injected script decisions prove delegation and truthful handling;
+    // the Harness owns the risk-set and confirmation implementation.
+    for (const operation of ['rebuild', 'withdraw']) {
+      for (const { label, args, exit } of scenarios) {
+        const runner = new FakeRunner([response('', 'guard-owned-output', exit)])
+        const cli = harness(runner, setup.environment)
+        expect(await cli.run(['host', operation, '--host', 'agent-host', ...args]), label).toBe(exit === 0 ? 0 : 1)
+        expect(runner.calls).toHaveLength(1)
+        expect(runner.calls[0]).toMatchObject({
+          command: 'bash',
+          args: [join(setup.harness, 'operations/aws/agent-host/destroy.sh'), operation, ...args],
+          mode: 'interactive',
+          cwd: setup.harness,
+          env: { AWS_PROFILE: 'knowledge-islands-techne', AWS_REGION: 'eu-west-1', EXPECTED_AWS_ACCOUNT: ACCOUNT }
+        })
+        expect(runner.calls[0]?.env).not.toHaveProperty('CONFIRM_DESTROY_AGENT_HOST')
+        expect(cli.output().stdout.includes('completed guarded')).toBe(exit === 0)
+        expect(cli.output().stderr).not.toContain('guard-owned-output')
+      }
+    }
+    const rejected = harness(new ThrowingRunner(new Error('raw-secret')), setup.environment)
+    expect(await rejected.run(['host', 'rebuild', '--host', 'agent-host'])).toBe(1)
+    expect(rejected.output().stderr).toBe('techne: error: harness rebuild could not run\n')
+  })
+
+  test('validates operation metadata and retains unresolved recipe footprint text', async () => {
+    const recipeCli = harness(new FakeRunner([]), fixture().environment)
+    expect(await recipeCli.run(['recipe', 'show', 'agent-host', '--json'])).toBe(0)
+    expect(JSON.parse(recipeCli.output().stdout).operations).toMatchObject({
+      rebuild: { script: 'destroy' },
+      withdraw: { script: 'destroy' }
     })
-    expect(report.hosts[1].workspace).toEqual({
-      state: 'failed',
-      report: null,
-      detail: 'harness status script failed: down'
+    const invalid = [
+      AGENT_HOST.replace(
+        '[operations.rebuild]\nsummary = "Replace the host, keeping credentials for the next build"\nscript = "destroy"',
+        '[operations]\nrebuild = "invalid"'
+      ),
+      AGENT_HOST.replace('summary = "Replace the host, keeping credentials for the next build"', 'summary = 1'),
+      AGENT_HOST.replace('script = "destroy"', 'script = 1'),
+      AGENT_HOST.replace('script = "destroy"', '')
+    ]
+    for (const recipe of invalid) {
+      const runner = new FakeRunner([])
+      const cli = harness(runner, fixture({ recipes: { 'agent-host': recipe } }).environment)
+      expect(await cli.run(['host', 'rebuild', '--host', 'agent-host'])).toBe(1)
+      expect(runner.calls).toHaveLength(0)
+    }
+    const setup = fixture({
+      recipes: { 'agent-host': AGENT_HOST.replace('tailnet device {tailscale_name}', 'unresolved {missing}') }
     })
-    expect(runner.calls).toHaveLength(5)
+    const runner = new FakeRunner([])
+    const cli = harness(runner, setup.environment)
+    expect(await cli.run(['host', 'rebuild', '--host', 'agent-host', '--dry-run'])).toBe(0)
+    expect(cli.output().stdout).toContain('unresolved {missing}')
+    expect(runner.calls).toHaveLength(0)
+  })
+
+  test('refuses invalid grammar and missing removal declarations before any call', async () => {
+    const setup = fixture()
+    for (const args of [
+      ['host', 'rebuild', '--discard'],
+      ['host', 'rebuild', '--discard', ''],
+      ['host', 'withdraw', '--discard', '  '],
+      ['host', 'rebuild', '--discard', 'a', 'a'],
+      ['host', 'rebuild', '--discard', 'a', '--discard', 'b'],
+      ['host', 'withdraw', '--discard', 'a', '--discard-unreadable-host'],
+      ['host', 'status', '--discard', 'a'],
+      ['host', 'status', '--discard-unreadable-host'],
+      ['host', 'start', '--now'],
+      ['host', 'withdraw', '--now'],
+      ['host', 'stop', '--discard', 'a'],
+      ['host', 'rebuild', 'extra']
+    ]) {
+      const runner = new FakeRunner([])
+      expect(await harness(runner, setup.environment).run([...args, '--host', 'agent-host'])).toBe(2)
+      expect(runner.calls).toHaveLength(0)
+    }
+    for (const recipe of [
+      AGENT_HOST.replace(/\[operations.rebuild\][\s\S]*?(?=\[operations.withdraw)/, ''),
+      AGENT_HOST.replace('destroy = "operations/aws/agent-host/destroy.sh"', '')
+    ]) {
+      const runner = new FakeRunner([])
+      expect(
+        await harness(runner, fixture({ recipes: { 'agent-host': recipe } }).environment).run([
+          'host',
+          'rebuild',
+          '--host',
+          'agent-host'
+        ])
+      ).toBe(1)
+      expect(runner.calls).toHaveLength(0)
+    }
   })
 })
 
@@ -2700,51 +2882,24 @@ describe('recipes and new bindings', () => {
 describe('provider contract', () => {
   const zoned = binding('zoned', '[stub]\n', 'multi').replace('recipe =', 'workspace = "w"\nrecipe =')
 
-  test('dispatches every host command to the binding provider', async () => {
+  test('dispatches host commands and guarded script resolution through the binding provider', async () => {
     const log: string[] = []
     const setup = fixture({ bindings: { zoned } })
     const providers = [...PROVIDERS, stubProvider(log, 'stopped')]
     const runner = new FakeRunner([])
-    const run = async (args: string[], answers: string[] = []) => {
-      const cli = harness(runner, setup.environment, LOCAL_RUNTIME, true, answers, providers)
-      const code = await cli.run(args)
-      return { code, ...cli.output() }
-    }
-    expect((await run(['host', 'status', '--stub-zone', 'z9', '--json'])).stdout).toContain('"zone":"z9"')
-    expect((await run(['host', 'start', '--host', 'zoned'])).stdout).toContain('started stub-1')
-    expect((await run(['host', 'stop', '--host', 'zoned'])).stdout).toContain('already stopped')
-    const teardown = await run(['host', 'teardown', '--host', 'zoned'], ['stub-1'])
-    expect(teardown.stdout).toContain(
-      'teardown still needs, from recipe multi:\n  - stub zone zone-zoned\n  - unresolved {stub.missing}\n' +
-        '  - tailnet device multi-zoned\n  - named entry\n'
-    )
-    expect(log).toEqual([
-      'host zoned {"zone":"z9"}',
-      'status',
-      'host zoned {}',
-      'start stub-1',
-      'host zoned {}',
-      'host zoned {}',
-      'terminate stub-1'
-    ])
-    expect(runner.calls).toEqual([])
-
-    const running = fixture({ bindings: { zoned } })
-    const stopLog: string[] = []
-    const stop = harness(
-      new FakeRunner([]),
-      running.environment,
-      LOCAL_RUNTIME,
-      true,
-      [],
-      [...PROVIDERS, stubProvider(stopLog, 'running')]
-    )
-    expect(await stop.run(['host', 'stop', '--host', 'zoned'])).toBe(0)
-    expect(stopLog).toContain('stop stub-1')
-
+    const status = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], providers)
+    expect(await status.run(['host', 'status', '--stub-zone', 'z9', '--json'])).toBe(4)
+    expect(status.output().stdout).toContain('"zone":"z9"')
+    const start = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], providers)
+    expect(await start.run(['host', 'start', '--host', 'zoned'])).toBe(0)
+    expect(log).toContain('start stub-1')
+    const missing = harness(runner, setup.environment, LOCAL_RUNTIME, true, [], providers)
+    expect(await missing.run(['host', 'stop', '--host', 'zoned'])).toBe(1)
+    expect(missing.output().stderr).toContain('declares no stop script')
+    expect(runner.calls).toHaveLength(0)
     const refused = harness(
-      new FakeRunner([]),
-      running.environment,
+      runner,
+      setup.environment,
       LOCAL_RUNTIME,
       true,
       [],

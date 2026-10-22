@@ -20,6 +20,9 @@ export interface Invocation {
   full: boolean
   dryRun: boolean
   pull: boolean
+  now: boolean
+  discard: string[]
+  discardUnreadableHost: boolean
   all: boolean
   help: boolean
   version: boolean
@@ -42,12 +45,16 @@ const VALUE_FLAGS: Readonly<Record<string, ValueKey>> = {
   '--provider': 'provider'
 }
 
-const SWITCHES: Readonly<Record<string, 'json' | 'full' | 'dryRun' | 'pull' | 'all' | 'help' | 'version'>> = {
+const SWITCHES: Readonly<
+  Record<string, 'json' | 'full' | 'dryRun' | 'pull' | 'now' | 'discardUnreadableHost' | 'all' | 'help' | 'version'>
+> = {
   '--json': 'json',
   '--full': 'full',
   '--dry-run': 'dryRun',
   '--pull': 'pull',
   '--all': 'all',
+  '--now': 'now',
+  '--discard-unreadable-host': 'discardUnreadableHost',
   '--help': 'help',
   '-h': 'help',
   '--version': 'version',
@@ -83,12 +90,28 @@ export function parseInvocation(
     dryRun: false,
     pull: false,
     all: false,
+    now: false,
+    discard: [] as string[],
+    discardUnreadableHost: false,
     help: false,
     version: false
   }
 
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index] as string
+    if (argument === '--discard') {
+      if (invocation.discard.length > 0) throw new TechneError('--discard may be given only once', 2)
+      while (argv[index + 1] !== undefined && !(argv[index + 1] as string).startsWith('-')) {
+        invocation.discard.push(argv[++index] as string)
+      }
+      if (invocation.discard.length === 0 || invocation.discard.some((repository) => repository.trim().length === 0)) {
+        throw new TechneError('--discard requires one or more non-empty repositories', 2)
+      }
+      if (new Set(invocation.discard).size !== invocation.discard.length) {
+        throw new TechneError('--discard repositories must be unique', 2)
+      }
+      continue
+    }
     const toggle = SWITCHES[argument]
     if (toggle !== undefined) {
       invocation[toggle] = true

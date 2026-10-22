@@ -6,19 +6,21 @@ All notable changes to `techne` are recorded here.
 
 ### Breaking
 
+- Guarded `host rebuild` and `host withdraw` replace teardown; the old command exits 2 without effects. Status uses structured safety with outcome exits 0/3/4/1/255, single schema v3 and list schema v2. Stopped or absent hosts exit 4.
 - Hosts and the controller are now configured rather than built in. Each host is a binding, `~/.config/techne/hosts/<name>.toml`, with a recipe from the harness checkout and exactly one provider table; the controller is the `[controller.aws]` table in `~/.config/techne/config.toml`. Commands refuse until the target they need exists.
-- `host setup`, `start`, `stop` and `teardown` require `--host`.
+- `host setup`, `start`, `stop`, `rebuild` and `withdraw` require `--host`.
 - `--profile`, `--region`, `--account`, `--controller-stack` and `--host-profile` are removed in favour of `--aws-profile`, `--aws-region`, `--aws-account`, `--aws-controller-stack` and `--aws-operator-profile`, which apply only to a target using the AWS provider.
-- `EXPECTED_AWS_ACCOUNT`, `CONTROLLER_STACK_NAME` and `TECHNE_HOST_PROFILE` are no longer read. `host status --json` reports the schema `techne/host-status/v2`.
+- `EXPECTED_AWS_ACCOUNT`, `CONTROLLER_STACK_NAME` and `TECHNE_HOST_PROFILE` are no longer read. `host status --json` reports the schema `techne/host-status/v3`.
 
 ### Added
 
+- Stop delegates warnings and waiting to the recipe script; `--now` skips its warning read. Stop and destroy receive operator and administrator profiles respectively. Removal dry runs never probe a host; overrides and confirmation stay with the Harness guard.
 - `techne recipe list|show`, `techne host list|add` and `techne host status --all`.
 - Host selection by `--host`, `TECHNE_HOST`, `default_host` or the only binding.
 - Recipe-driven AWS selectors, script environment and teardown footprint, through a provider adapter contract.
 - Optional `reboot_window` (a 24-hour `HH:MM`) and `livepatch` (a boolean) binding fields for the agent-host recipe's patching, passed only to the scripts that declare them.
 - Optional `tailscale_oauth_item` binding field holding the 1Password reference, `op://<vault>/<item>`, to the agent host's Tailscale OAuth client, passed only to the scripts that declare it; any other form is refused and the reference is never read.
-- `host status --json` adds the status document's optional `updates` member as `workspace.updates` when the recipe declares one; it is advisory and never changes the workspace state or exit status.
+- `host status --json` retains optional `workspace.updates`, projected from the authoritative structured read; updates remain advisory. Text-only expiry and pin warnings use a bounded second read; JSON has no expiry signal.
 
 ### Fixed
 

@@ -39,15 +39,17 @@ function bashCompletion(provider: string, values: string): string {
     'help auth') choices="login $options" ;;
     'help controller') choices="status bootstrap $options" ;;
     'help recipe') choices="list show $options" ;;
-    'help host') choices="list add status setup start stop teardown connect $options" ;;
+    'help host') choices="list add status setup start stop rebuild withdraw connect $options" ;;
     auth) choices="login $options" ;;
     controller) choices="status bootstrap $options" ;;
     recipe) choices="list show $options" ;;
-    host) choices="list add status setup start stop teardown connect $options" ;;
+    host) choices="list add status setup start stop rebuild withdraw connect $options" ;;
     'host add'*) choices="--recipe --provider $options" ;;
     'host status') choices="--all $options $provider" ;;
+    'host stop') choices="--now --dry-run $options $provider" ;;
+    'host rebuild'*|'host withdraw'*) choices="--discard --discard-unreadable-host --dry-run $options $provider" ;;
     'host setup') choices="--pull --dry-run $options $provider" ;;
-    'host start'|'host stop'|'host teardown'|'host connect'*) choices="--dry-run $options $provider" ;;
+    'host start'|'host connect'*) choices="--dry-run $options $provider" ;;
     completion) choices='bash zsh' ;;
     *) choices="$options" ;;
   esac
@@ -89,15 +91,17 @@ _techne() {
     'help auth') candidates=(login "\${options[@]}") ;;
     'help controller') candidates=(status bootstrap "\${options[@]}") ;;
     'help recipe') candidates=(list show "\${options[@]}") ;;
-    'help host') candidates=(list add status setup start stop teardown connect "\${options[@]}") ;;
+    'help host') candidates=(list add status setup start stop rebuild withdraw connect "\${options[@]}") ;;
     auth) candidates=(login "\${options[@]}") ;;
     controller) candidates=(status bootstrap "\${options[@]}") ;;
     recipe) candidates=(list show "\${options[@]}") ;;
-    host) candidates=(list add status setup start stop teardown connect "\${options[@]}") ;;
+    host) candidates=(list add status setup start stop rebuild withdraw connect "\${options[@]}") ;;
     'host add'*) candidates=(--recipe --provider "\${options[@]}") ;;
     'host status') candidates=(--all "\${options[@]}" "\${provider[@]}") ;;
+    'host stop') candidates=(--now --dry-run "\${options[@]}" "\${provider[@]}") ;;
+    'host rebuild'*|'host withdraw'*) candidates=(--discard --discard-unreadable-host --dry-run "\${options[@]}" "\${provider[@]}") ;;
     'host setup') candidates=(--pull --dry-run "\${options[@]}" "\${provider[@]}") ;;
-    'host start'|'host stop'|'host teardown'|'host connect'*) candidates=(--dry-run "\${options[@]}" "\${provider[@]}") ;;
+    'host start'|'host connect'*) candidates=(--dry-run "\${options[@]}" "\${provider[@]}") ;;
     completion) candidates=(bash zsh) ;;
     *) candidates=("\${options[@]}") ;;
   esac
