@@ -24,7 +24,7 @@ Run:
 
 ```sh
 bun install --frozen-lockfile
-bun install --frozen-lockfile --cwd tooling/boundaries
+bun install --frozen-lockfile --cwd tooling/depcruise
 bun run test
 bun run test:coverage
 bun run self:typecheck

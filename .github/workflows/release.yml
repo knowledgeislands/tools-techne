@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
       - uses: jdx/mise-action@9e7f7633ff6f6d6048a9418a68d48f288f50eb14 # v4.2.3
       - run: bun install --frozen-lockfile
-      - run: bun install --frozen-lockfile --cwd tooling/boundaries
+      - run: bun install --frozen-lockfile --cwd tooling/depcruise
       - run: bun run test
       - run: bun run test:coverage
       - id: release
@@ -74,7 +74,7 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install --yes mandoc
       - run: bun install --frozen-lockfile
-      - run: bun install --frozen-lockfile --cwd tooling/boundaries
+      - run: bun install --frozen-lockfile --cwd tooling/depcruise
       - run: bun run test
       - run: bash release/package.sh "${{ needs.validate.outputs.version }}" "${{ matrix.bun-target }}" "${{ matrix.asset-target }}"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -6,7 +6,7 @@ import { promisify } from 'node:util'
 import { describe, expect, test } from 'vitest'
 
 const execute = promisify(execFile)
-const checker = resolve('tooling/boundaries/node_modules/.bin/depcruise')
+const checker = resolve('tooling/depcruise/node_modules/.bin/depcruise')
 const moduleFloor = 18
 interface Dependency {
   resolved: string
@@ -39,7 +39,7 @@ describe('resolved dependency boundaries', () => {
         '-e',
         "import {getAvailableTranspilers} from 'dependency-cruiser'; console.log(JSON.stringify(getAvailableTranspilers()))"
       ],
-      { cwd: resolve('tooling/boundaries') }
+      { cwd: resolve('tooling/depcruise') }
     )
     expect(JSON.parse(transpilers.stdout)).toContainEqual(
       expect.objectContaining({ name: 'typescript', available: true })
