@@ -391,8 +391,8 @@ async function doctor(context: Context): Promise<number> {
   if (runtime.installation === 'local') {
     checks.push({
       name: 'bun',
-      ok: runtime.bunVersion === '1.4.2',
-      detail: runtime.bunVersion === '1.4.2' ? runtime.bunVersion : `running Bun ${runtime.bunVersion}; expected 1.4.2`
+      ok: runtime.bunVersion === '1.4.3',
+      detail: runtime.bunVersion === '1.4.3' ? runtime.bunVersion : `running Bun ${runtime.bunVersion}; expected 1.4.3`
     })
   } else {
     checks.push({

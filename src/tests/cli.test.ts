@@ -27,7 +27,7 @@ const LOCAL_RUNTIME: TechneRuntime = {
   installation: 'local',
   executable: '/checkout/src/main.ts',
   workingDirectory: '/checkout',
-  bunVersion: '1.4.2',
+  bunVersion: '1.4.3',
   platform: 'darwin',
   architecture: 'arm64'
 }
@@ -429,7 +429,7 @@ describe('techne CLI', () => {
       bunVersion: '1.3.0'
     })
     expect(await stale.run(['doctor'])).toBe(1)
-    expect(stale.output().stdout).toContain('fail bun: running Bun 1.3.0; expected 1.4.2\n')
+    expect(stale.output().stdout).toContain('fail bun: running Bun 1.3.0; expected 1.4.3\n')
     const missing = harness(new FakeRunner([response('', '', 127), response('', '', 127)]), fixture().environment, {
       ...LOCAL_RUNTIME,
       installation: 'release',
@@ -747,7 +747,7 @@ describe('techne CLI', () => {
       'Tool: techne',
       'Platform: macos',
       'Architecture: arm64',
-      'Runtime: Bun 1.4.2',
+      'Runtime: Bun 1.4.3',
       'Configuration: 1 host binding; controller aws'
     ])
       expect(cli.output().stdout).toContain(field)
