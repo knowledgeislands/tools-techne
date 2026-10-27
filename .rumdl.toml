@@ -34,7 +34,7 @@ exclude = [
 # standard flavor and forbids wikilinks, where the pipe remains a real column
 # separator. Keep MD056 enabled so AUDIT catches that invalid shape, but make
 # it unfixable so CONFORM cannot truncate the row while reporting it.
-disable = ["MD005", "MD033", "MD036", "MD057", "MD075"]
+disable = ["MD033", "MD036", "MD057"]
 unfixable = ["MD056"]
 
 # MD013 owns line length and prose wrapping together, replacing the former
