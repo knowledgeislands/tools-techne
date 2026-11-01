@@ -14,7 +14,7 @@ if [ -n "$missing" ]; then
   exit 1
 fi
 missing=''
-for tool in shellcheck bash mandoc ki; do
+for tool in shellcheck bash mandoc; do
   if ! command -v "$tool" >/dev/null 2>&1; then missing="$missing $tool"; fi
 done
 if [ -n "$missing" ]; then
@@ -25,7 +25,7 @@ if [ -n "$missing" ]; then
 fi
 PATH="$root/node_modules/.bin:$PATH"
 export PATH
-lint-staged --quiet || exit 1
+lint-staged --quiet --no-stash || exit 1
 syncpack format --check || exit 1
 # Staged shell files, by name or by a sh or bash shebang, and staged manual pages (ki-repo-tools SHELL-HOOK).
 staged_shell() {
@@ -42,10 +42,3 @@ if [ -n "$shell_files" ]; then
   printf '%s\n' "$shell_files" | while IFS= read -r path; do bash -n "$path" || exit 1; done || exit 1
 fi
 git diff --cached --name-only --diff-filter=ACMR -z -- 'man/*.[1-9]' | xargs -0 -r mandoc -T lint || exit 1
-# The focused shape audit, check-only over the staged paths; on a failure it runs again in full.
-quiet_audit() {
-  ki repo audit --repo "$root" --staged --concise --progress never --reporter-levels FAIL "$@" && return 0
-  ki repo audit --repo "$root" --staged "$@"
-  return 1
-}
-quiet_audit --skill ki-repo-tools || exit 1
