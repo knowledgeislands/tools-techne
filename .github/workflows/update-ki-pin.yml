@@ -1,0 +1,82 @@
+name: Update ki pin
+
+# Proposes a .github/ki-version bump when tools-ki publishes an immutable
+# release. Inert until the release App is installed here and its variable and
+# secret are set; the daily schedule backstops a missed dispatch. The pull
+# request auto-merges once required checks pass only when its diff is the pin
+# file alone and main's rules require status checks; otherwise a person
+# reviews it (XDR-KI-HARNESS-001).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-ki-pin
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: >-
+      vars.KI_TOOLS_RELEASE_BOT_APP_ID != '' &&
+      (github.event_name != 'repository_dispatch' ||
+       github.event.client_payload.source_repository == 'knowledgeislands/tools-ki')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create tools release bot token
+        id: release-bot
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ vars.KI_TOOLS_RELEASE_BOT_APP_ID }}
+          private-key: ${{ secrets.KI_TOOLS_RELEASE_BOT_PRIVATE_KEY }}
+          owner: knowledgeislands
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@v7.0.1
+        with:
+          token: ${{ steps.release-bot.outputs.token }}
+      - name: Propose the latest immutable ki release
+        env:
+          GH_TOKEN: ${{ steps.release-bot.outputs.token }}
+        run: |
+          set -euo pipefail
+          release=$(gh api repos/knowledgeislands/tools-ki/releases/latest)
+          version=$(jq -r '.tag_name' <<<"$release")
+          immutable=$(jq -r '.immutable // false' <<<"$release")
+          [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          current=$(tr -d '[:space:]' < .github/ki-version)
+          [[ "$current" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if [[ "$immutable" != "true" ]]; then
+            echo "latest release $version not immutable; skipped"
+            exit 0
+          fi
+          if [[ "$version" == "$current" ]] ||
+             [[ "$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -n 1)" != "$version" ]]; then
+            echo "pin $current is current; nothing to propose"
+            exit 0
+          fi
+          branch="automation/ki-$version"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "proposal branch $branch already exists; skipped"
+            exit 0
+          fi
+          printf '%s\n' "$version" > .github/ki-version
+          git config user.name 'ki-tools-release-bot[bot]'
+          git config user.email 'ki-tools-release-bot[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git commit -m "chore(ci): install ki $version" -- .github/ki-version
+          git push origin "$branch"
+          pr=$(gh pr create --base main --head "$branch" \
+            --title "chore(ci): install ki $version" \
+            --body "Moves the released \`ki\` pin from $current to $version, the latest immutable \`knowledgeislands/tools-ki\` release. CI installs it through the signed checksum manifest.")
+          # Auto-merge only a pin-only diff behind rules that require checks;
+          # the App cannot bypass them, and CI proves the checksum verifies.
+          changed=$(gh pr diff "$pr" --name-only)
+          checks=$(gh api "repos/$GITHUB_REPOSITORY/rules/branches/main" \
+            --jq '[.[] | select(.type == "required_status_checks")] | length')
+          if [[ "$changed" != ".github/ki-version" || "$checks" == "0" ]]; then
+            echo "$pr left for review: diff or branch rules not eligible" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh pr merge "$pr" --auto --squash
+          echo "$pr auto-merges once required checks pass" >> "$GITHUB_STEP_SUMMARY"
