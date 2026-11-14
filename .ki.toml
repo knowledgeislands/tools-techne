@@ -6,7 +6,7 @@
 # -----------------------------------------------------------------------------
 
 [repo]
-harnesses = [
+backpacks = [
   "knowledgeislands/ki-agent-backpack",
 ]
 
