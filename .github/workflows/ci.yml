@@ -51,7 +51,7 @@ jobs:
           diag=$(ki diag)
           grep -F 'Configuration: valid' <<<"$diag"
           grep -F 'Registry: valid' <<<"$diag"
-          ki harness list | grep -F 'knowledgeislands/ki-agentic-harness'
+          ki harness list | grep -E 'knowledgeislands/ki-agent(ic-harness|-backpack)'
           {
             printf 'KI_CLI_INSTALL_DIR=%s\n' "$KI_CLI_INSTALL_DIR"
             printf 'KI_MAN_INSTALL_DIR=%s\n' "$KI_MAN_INSTALL_DIR"
