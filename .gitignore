@@ -4,7 +4,6 @@
 # ki-repo:ignore:ki-repo:start
 # Generated reports, disposable tmp output, local metadata, logs, and runtime projections.
 reports/
-!/+/_WORK/*/reports/
 tmp/
 .DS_Store
 Thumbs.db
