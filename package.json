@@ -1,6 +1,6 @@
 {
   "name": "@knowledgeislands/techne",
-  "description": "Techne operator command-line interface.",
+  "description": "Provision, set up, start, connect to and diagnose Techne Harness hosts and their controller from the command line.",
   "version": "0.2.0",
   "author": "kris@kris.me.uk",
   "bin": {
@@ -29,9 +29,11 @@
   },
   "homepage": "https://github.com/knowledgeislands/tools-techne#readme",
   "keywords": [
+    "bun",
     "cli",
     "knowledge-islands",
-    "techne"
+    "techne",
+    "typescript"
   ],
   "license": "MIT",
   "lint-staged": {
